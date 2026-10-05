@@ -1,6 +1,6 @@
 # 逆向方法论：如何在不运行、不抓包的前提下还原一个 Agent 的 CU/BU 能力
 
-> 本文总结本轮 7 个 Agent 逆向实际使用的手段，可复现于任何 macOS 本机安装的桌面 Agent。
+> 本文总结本轮 8 个 Agent 逆向实际使用的手段，可复现于任何 macOS 本机安装的桌面 Agent。
 > 各 agent 的具体命令与输出存档见其 [evidence/inventory.md](../agents/)（ZCode/Codex/Claude/Cursor/MiniMax/Synara/Kimi 各一份）。
 
 **目录**
@@ -70,7 +70,7 @@ otool -L <binary>                          # 链接库：ScreenCaptureKit? CoreG
 ```
 
 特有判据：
-- **provenance 自述**：Synara 的 cua-driver 带 `provenance.json`（`patched: true`、`patchSha256`、`nativeRevision: 39`、上游 commit）——开源组件被谁改过、改了多少，直接读得到（[Synara CU §1](../agents/synara/computer-use.md)）。
+- **provenance 自述**：Synara 的 cua-driver 带 `provenance.json`（`patched: true`、`patchSha256`、`nativeRevision: 39`、上游 commit）——开源组件被谁改过、改了多少，直接读得到（[Synara CU §1](../agents/synara/computer-use.md)）；同类还有 Qoder 的 `node-repl/UPSTREAM.md`（内核迁自 qwen-code 的源仓库/commit/许可证记录，[Qoder README](../agents/qoder/README.md)）。
 - **third-party notices**：KimiCU 的 `THIRD_PARTY_NOTICES.md` 明文致谢 Cua AI 的签名键盘机制——「借鉴关系」最硬的证据形态（[Kimi CU §5.2](../agents/kimi-code/computer-use.md)）。
 - **签名类型影响 TCC 语义**：Synara 区分 ad-hoc 签名（TCC 授权随 cdhash 失效）与 Developer ID（[Synara CU §4](../agents/synara/computer-use.md)）——解读「权限丢失」类现象时必须考虑。
 

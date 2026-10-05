@@ -1,10 +1,10 @@
 # CU/BU Reverse — 主流 Coding Agent 的 Computer Use 与 Browser Use 能力逆向
 
-> 对 7 个主流 Coding Agent（ZCode / Codex / Claude / Cursor / MiniMax / Synara / Kimi）在 **同一台 macOS 机器上** 的
-> 桌面控制（Computer Use）与浏览器控制（Browser Use）能力做只读静态逆向：28 份文档、5100+ 行中文证据链，
+> 对 8 个主流 Coding Agent（ZCode / Codex / Claude / Cursor / MiniMax / Synara / Kimi / Qoder）在 **同一台 macOS 机器上** 的
+> 桌面控制（Computer Use）与浏览器控制（Browser Use）能力做只读静态逆向：32 份文档、5600+ 行中文证据链，
 > 回答三个问题——**它们怎么实现的？谁抄谁？我们能学到什么？**
 
-![research](https://img.shields.io/badge/type-reverse_engineering-blue) ![platform](https://img.shields.io/badge/platform-macOS_arm64-black) ![docs](https://img.shields.io/badge/docs-28%20files%20%2F%205100%2B%20lines-green) ![status](https://img.shields.io/badge/baseline-2026--10--06-orange) ![agents](https://img.shields.io/badge/agents-7-8A2BE2)
+![research](https://img.shields.io/badge/type-reverse_engineering-blue) ![platform](https://img.shields.io/badge/platform-macOS_arm64-black) ![docs](https://img.shields.io/badge/docs-32%20files%20%2F%205600%2B%20lines-green) ![status](https://img.shields.io/badge/baseline-2026--10--06-orange) ![agents](https://img.shields.io/badge/agents-8-8A2BE2)
 
 ---
 
@@ -13,7 +13,7 @@
 - [这是什么 / 不是什么](#这是什么--不是什么)
 - [核心发现 TL;DR](#核心发现-tldr)
 - [能力矩阵总表](#能力矩阵总表)
-- [七个 Agent 分册](#七个-agent-分册)
+- [八个 Agent 分册](#八个-agent-分册)
 - [横向对比](#横向对比)
 - [可复用设计模式](#可复用设计模式)
 - [逆向方法论](#逆向方法论)
@@ -27,7 +27,7 @@
 
 **是**：
 
-- 对本机已安装的 7 个 Coding Agent 的 CU/BU 能力栈做**只读静态分析**（打包 JS、原生二进制符号、随包文档、配置与日志）的完整记录；
+- 对本机已安装的 8 个 Coding Agent 的 CU/BU 能力栈做**只读静态分析**（打包 JS、原生二进制符号、随包文档、配置与日志）的完整记录；
 - 一份**横向对比研究**：观察机制、动作注入、安全模型、谱系关系；
 - 一份**工程设计模式库**：自己做 CU/BU Agent 需要的 13 个可复用模式；
 - 一套**可复现的逆向方法论**。
@@ -44,14 +44,15 @@
 
 ## 核心发现 TL;DR
 
-1. **7/7 全部具备 CU+BU 能力，架构高度趋同**：本地 Helper/驱动持 TCC 权限 + 本地 IPC 鉴权 + 工具面隔离原生 API。5/7 采用独立 Helper 进程（ZCode cua-helper、Codex Sky 服务、Claude app-cu-helper、Cursor sidecar、Kimi KimiCU）；MiniMax 用 Electron utility process、Synara 由宿主直托管驱动。
-2. **公共底座是开源 Cua AI（trycua）**：MiniMax 直接内嵌 `cua-driver 0.22.1`、Synara 内嵌 `0.28.2`（patched，带 provenance.json），Kimi 公开致谢其 SLS 签名键盘事件机制（`THIRD_PARTY_NOTICES.md` 原文）——一个 MIT 开源项目成了半条赛道的地基。
-3. **ZCode 的 CU SDK 逐字对齐 Codex `@oai/cua`（0.2.4）**（SDK 头注释自述），但 `stateId/frameId/possibly_sent/controller lease/kill switch` 是 ZCode 事故驱动的自研加固——Codex 原始面对 stale 索引的对策只是「AX diff + 错误内嵌新鲜 diff + 流程纪律」。
-4. **观察机制两大流派，CU 无人用 set-of-marks**：桌面侧全走「AX 树增量 diff」（ZCode/Codex/Kimi/Synara/MiniMax/Cursor），浏览器侧全走「可交互元素快照 + 不透明 ref」；截图只是兜底与视觉凭据。防句柄漂移出现五个递强度方案：流程纪律 → 双基线台账 → snapshot_id 绑定 → 描述校验 → verify_after 三态。
-5. **后台定向输入（不抢焦点）是投入最重、分化最大的能力**：四条路线并存——AX 写值、窗口相对事件路由、SLS 签名事件认证封包（Kimi：窗口全遮挡也能落键）、SkyLight/CGS 私有 API（Claude：跨 Space 拉窗、后台菜单点击）。
-6. **BU 三架构各有实例**：内嵌 WebView（ZCode IAB、MiniMax WebContentsView、Synara 面板、Cursor browserView）、真浏览器扩展（Claude in Chrome、Kimi webbridge、Codex chrome 扩展、Cursor 扩展常量）、云端浏览器（Codex cdp、Cursor remote worker 用 xdotool）。成熟产品全部走向「多后端 + 能力广告」的统一对象面。
-7. **MCP 是万能挂载面，六种形态**：Claude 隐藏子命令入口、Cursor 一方 MCP provider、MiniMax 插件 + Host Binding 门控、Kimi CU 服务即 MCP server、Codex cua_repl 只露 3 个工具（面藏在 `cua` 全局）、ZCode 单一 `js` 工具 + Symbol 桥接 + skill 文档面。共同点：**未启用 = 工具不存在**（fail-closed）。
-8. **本机可用性差异巨大**：ZCode/Codex/Synara/MiniMax 全链可用；Cursor CU 被 Statsig 门控未启用（sidecar 从未安装，BU 有真实使用痕迹）；Claude 代码完整但链路断（扩展未装 + TCC 未授权）；Kimi CU 服务常驻已授权，webbridge daemon 分析时未运行。
+1. **8/8 全部具备 CU+BU 能力，架构高度趋同**：本地 Helper/驱动持 TCC 权限 + 本地 IPC 鉴权 + 工具面隔离原生 API。6/8 采用独立 Helper 进程（ZCode cua-helper、Codex Sky 服务、Claude app-cu-helper、Cursor sidecar、Kimi KimiCU、Qoder Computer Use.app）；MiniMax 用 Electron utility process、Synara 由宿主直托管驱动。
+2. **公共底座是开源 Cua AI（trycua）**：MiniMax 直接内嵌 `cua-driver 0.22.1`、Synara 内嵌 `0.28.2`（patched，带 provenance.json），Kimi 公开致谢其 SLS 签名键盘事件机制（`THIRD_PARTY_NOTICES.md` 原文）——一个 MIT 开源项目成了半条赛道的地基；Qoder 是唯一非 trycua 系的自研 Swift Runtime。
+3. **第二条"公共底座"线索是 qwen-code（阿里系）**：Qoder 的 node_repl 内核由 `UPSTREAM.md` 原文确证直接迁自 qwen-code `packages/qwen_node_repl`（Apache-2.0，commit b1ac3e29），CU 信任链含通义灵码 `com.aliyun.lingma.ide`；ZCode 的 node_repl API 与之同构（`write/emitImage/wait/cancel/reset`）但上游待查——这是 Cua AI 之外第二条跨产品共享底座线索。
+4. **ZCode 的 CU SDK 逐字对齐 Codex `@oai/cua`（0.2.4）**（SDK 头注释自述），但 `stateId/frameId/possibly_sent/controller lease/kill switch` 是 ZCode 事故驱动的自研加固——Codex 原始面对 stale 索引的对策只是「AX diff + 错误内嵌新鲜 diff + 流程纪律」。
+5. **观察机制两大流派，CU 无人用 set-of-marks**：桌面侧全走「AX 树增量 diff」（8/8 家），浏览器侧全走「可交互元素快照 + 不透明 ref」；截图只是兜底与视觉凭据。防句柄漂移出现五个递强度方案：流程纪律 → 双基线台账 → snapshot_id 绑定 → 描述校验 → verify_after 三态。
+6. **后台定向输入（不抢焦点）是投入最重、分化最大的能力**：四条路线并存——AX 写值、窗口相对事件路由、SLS 签名事件认证封包（Kimi：窗口全遮挡也能落键）、SkyLight/CGS 私有 API（Claude：跨 Space 拉窗、后台菜单点击）。
+7. **BU 三架构各有实例**：内嵌 WebView（ZCode IAB、MiniMax WebContentsView、Synara 面板、Cursor browserView、Qoder in-app）、真浏览器扩展（Claude in Chrome、Kimi webbridge、Codex chrome 扩展、Qoder Browser Connector、Cursor 扩展常量）、云端浏览器（Codex cdp、Cursor remote worker 用 xdotool）。成熟产品全部走向「多后端 + 能力广告」的统一对象面。
+8. **MCP 是万能挂载面，七种形态**：Claude 隐藏子命令入口、Cursor 一方 MCP provider、MiniMax 插件 + Host Binding 门控、Kimi CU 服务即 MCP server、Codex cua_repl 只露 3 个工具（面藏在 `cua` 全局）、ZCode 单一 `js` 工具 + Symbol 桥接 + skill 文档面、Qoder SKILL 注入 + 内置 MCP 双轨（mac CU 无 MCP 走 node_repl SDK，BU 是内置 16 工具 MCP）。共同点：**未启用 = 工具不存在**（fail-closed）。
+9. **本机可用性差异巨大**：ZCode/Codex/Synara/MiniMax 全链可用；Cursor CU 被 Statsig 门控未启用（sidecar 从未安装，BU 有真实使用痕迹）；Claude 代码完整但链路断（扩展未装 + TCC 未授权）；Qoder CU 完整载体在位但从未激活（`ipc/` 空），BU in-app 有真实会话（42 次调用）；Kimi CU 服务常驻已授权，webbridge daemon 分析时未运行。
 
 ---
 
@@ -68,10 +69,11 @@
 | **MiniMax** | trycua cua-driver 0.22.1（utility process） | 17 | 内嵌 WebContentsView + CDP（24 action） | 插件 Host Binding 门控 + lease + generation fencing + 遮罩/停止按钮 | ✅ |
 | **Synara** | trycua cua-driver 0.28.2 patched（宿主托管） | 33 | 内嵌面板（BetterWright/CDP）+ CDP 家族 + cookie 导入 | `computer:control` 能力域 + 前台可见使用正则授权 + 物理 Escape | ✅ |
 | **Kimi** | KimiCU.app（Swift，launchd 常驻；SkyLight 签名事件） | 18 + js | 扩展（WS daemon）+ 桌面内嵌（43 操作 MCP） | TCC 归服务 + UDS token + observation_context 隔离 + takeover | CU ✅ / BU 部分 |
+| **Qoder** | 自研 Swift Runtime 1.0.12（AX/CGEvent/SCK + Bridge；非 trycua 系） | 11 SDK 方法（+Win 16 MCP + 录制 3） | 内嵌 + 扩展执行 + Browser Agent API 三链路（16 工具钉死 chrome-devtools-mcp 基线） | per-app 审批 + URL 禁区 + CUA 风格四档确认 + 扩展侧校验（无逐动作弹窗） | CU 关 / BU in-app ✅（42 次调用实证） |
 
 ---
 
-## 七个 Agent 分册
+## 八个 Agent 分册
 
 每册含 README 总览 + computer-use.md + browser-use.md + evidence/inventory.md（路径:行号级证据）。
 
@@ -96,6 +98,9 @@
 ### [Kimi Code（Moonshot）](agents/kimi-code/README.md)
 产品主打「后台操作不抢电脑」：KimiCU.app（Swift）经 launchd 常驻持 TCC，SkyLight 路由 + SLS 签名事件（公开致谢 Cua AI）实现 never-front 后台定向输入，`verify_after` 三态投递验证；BU 双轨——webbridge daemon+扩展复用真实登录态、桌面内嵌浏览器 43 操作带 takeover 与 30 天 receipts 审计。*（基线：CLI 0.39.1 / KimiCU 0.6.6）*
 
+### [Qoder（阿里巴巴系）](agents/qoder/README.md)
+自研 Electron workbench（非 VSCode fork），node_repl 内核经 UPSTREAM.md 确证迁自 qwen-code。CU = 自研 Swift Runtime（11 SDK 方法，per-app 审批 + CUA 风格四档确认分类；另有 Windows 16 工具 MCP 与 Record&Replay「录用户演示 → 生成 Skill」）；BU 三链路 = in-app 浏览器（16 工具 MCP，注册时钉死校验 chrome-devtools-mcp 基线，本机已真实使用）+ Browser Connector 扩展执行 + Browser Agent API。*（基线：0.4.3 / CU Runtime 1.0.12）*
+
 ---
 
 ## 横向对比
@@ -110,9 +115,9 @@
 
 ## 可复用设计模式
 
-**[reusable/patterns.md](reusable/patterns.md)** —— 本仓库核心价值：从 7 家实现提炼的 13 个设计模式，每条含问题定义、使用者（带分册链接）、实现要点、取舍：
+**[reusable/patterns.md](reusable/patterns.md)** —— 本仓库核心价值：从 8 家实现提炼的 16 个设计模式，每条含问题定义、使用者（带分册链接）、实现要点、取舍：
 
-P1 独立 Helper 进程（持 TCC + 权限中介） · P2 无障碍优先+视觉兜底双路径 · P3 元素句柄防漂移（五方案） · P4 后台定向输入（四路线） · P5 剪贴板 paste 与 setValue 分层 · P6 控制租约与 generation fencing · P7 防重放与 kill switch · P8 浏览器三架构选型 · P9 MCP 万能挂载 · P10 审批分级与域白名单 · P11 Fail-closed 工具注入 · P12 批量动作与坐标基准 · P13 可视化示能与人机共驾 —— 附**最小可行架构组合图**。
+P1 独立 Helper 进程（持 TCC + 权限中介） · P2 无障碍优先+视觉兜底双路径 · P3 元素句柄防漂移（五方案） · P4 后台定向输入（四路线） · P5 剪贴板 paste 与 setValue 分层 · P6 控制租约与 generation fencing · P7 防重放与 kill switch · P8 浏览器三架构选型 · P9 MCP 万能挂载 · P10 审批分级与域白名单 · P11 Fail-closed 工具注入 · P12 批量动作与坐标基准 · P13 可视化示能与人机共驾 · P14 注册表文件型传输（ipc/*.json + token + 懒拉起） · P15 钉死第三方工具基线 · P16 录制 → Skill 演示学习闭环 —— 附**最小可行架构组合图**。
 
 ## 逆向方法论
 
@@ -130,22 +135,23 @@ computer-use/
 ├── comparison/
 │   └── capability-matrix.md         ← 12 维横向矩阵 + 深度对比 + 谱系图
 ├── reusable/
-│   └── patterns.md                  ← 13 个可复用设计模式（核心价值）
+│   └── patterns.md                  ← 16 个可复用设计模式（核心价值）
 ├── docs/
 │   └── methodology.md               ← 可复现的逆向方法论
-└── agents/                          ← 7 个 Agent 分册（28 份文档，5100+ 行）
+└── agents/                          ← 8 个 Agent 分册（32 份文档，5600+ 行）
     ├── zcode/                       ← README + computer-use + browser-use + evidence/inventory
     ├── codex/
     ├── claude-code/
     ├── cursor/
     ├── minimax-code/
     ├── synara/
-    └── kimi-code/
+    ├── kimi-code/
+    └── qoder/
 ```
 
 ## 免责声明
 
-- 本项目为**独立技术研究**，与文中所及任何厂商（ZCode/智谱、OpenAI、Anthropic、Anysphere/Cursor、MiniMax、Cua AI、Moonshot AI 及个人开发者）均无关联，未获任何厂商授权或审阅；文中结论不代表官方立场，可能随版本更新失效（各分册头部均标注分析时点版本）。
+- 本项目为**独立技术研究**，与文中所及任何厂商（ZCode/智谱、OpenAI、Anthropic、Anysphere/Cursor、MiniMax、Cua AI、Moonshot AI、Qoder/阿里巴巴 及个人开发者）均无关联，未获任何厂商授权或审阅；文中结论不代表官方立场，可能随版本更新失效（各分册头部均标注分析时点版本）。
 - 各产品名称、商标权利归其各自所有者所有。文中提及仅作识别与学术比较之用。
 - 仓库**不含任何专有源码、二进制或凭据**：仅对分析者本机合法安装的软件做静态分析，引用专有内容不超过 10 行/处且以说明为目的；未运行被分析对象、未抓包、未触碰凭据、无任何 DRM 规避或访问控制绕过。
 - 安全相关内容（权限模型、审批机制等）仅作架构学习与防御性工程参考；请勿将任何模式用于未经授权操控他人设备或绕过产品安全策略。
