@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reverse.computer-use/source/mimo/schemas/tools.json",
+  "title": "Xiaomi MiMo — CU/BU 工具面规范化",
+  "version": "1.0.0",
+  "baseline": {
+    "app": "Xiaomi MiMo AI 26.914.142245 (com.xiaomi.mimo.desktop-ai)",
+    "runtime": "@mi/mimo-computer-use 0.7.11 (proprietary, pkgs.d.xiaomi.net)",
+    "observed": "2026-10-06, macOS arm64, 本机只读静态分析"
+  },
+  "notes": "本文件为手写整理的规范化工具面，非任何官方 schema。每层条目以 source 字段标注证据来源路径。专有代码未复制，仅记录可观察契约。",
+  "productSurface": {
+    "description": "模型可见面：唯一 MCP 工具 js（持久 Node REPL）。CU/BU 为同一内核中的受信模块，由宿主环境变量开关启用，未启用时对应门面不存在（fail-closed）。",
+    "source": "dist/node-repl.js（tools/list 与参数白名单）+ 包 README「MCP entry point」",
+    "tool": {
+      "name": "js",
+      "type": "persistent_node_repl",
+      "parameters": {
+        "code": { "type": "string", "required": true, "description": "JavaScript 源码，支持顶层 await；裸表达式不返回，需 nodeRepl.write() 显式输出" },
+        "title": { "type": "string", "required": false },
+        "description": { "type": "string", "required": false },
+        "timeout_ms": { "type": "integer", "required": false }
+      },
+      "kernelGlobals": ["sky（@mimo/sky，桌面，CU 开关启用）", "agent / browserAgent（@mimo/browser-use，浏览器，BU 开关启用）", "nodeRepl.write(value)", "nodeRepl.emitImage({bytes, mimeType})"]
+    }
+  },
+  "computerUse": {
+    "facade": "@mimo/sky",
+    "source": "~/.config/mimocode/skills/mimo-computer-use/mimo-computer-use/SKILL.md「Public API」(140-224 行) + 运行时包 README 10-tool 表",
+    "stateShape": {
+      "SkyState": {
+        "app": "string",
+        "text": "string — AX 树文本（index 化元素）",
+        "screenshot": "{ url: string, unchanged?: boolean } | null — unchanged 仅表像素未变，不证明动作成功",
+        "targetWindow": "{ windowId?, title?, surface?: window|sheet|menu, panel?: open-panel }",
+        "action": "{ dispatchStatus?: verified|dispatched|not-dispatched, observationStatus?: complete|partial, uiChanged?: boolean|null, imageRevision?: number, axRevision?: number, semanticStatus?: string, diagnostic?: string, retrySafe?: boolean, reasonCode?: string, recommendedActions?: string[] }"
+      },
+      "semantics": "变更方法返回同事务的下一观察；index/坐标一次性有效，动作后禁止复用"
+    },
+    "methods": [
+      { "name": "list_apps", "params": {}, "returns": "Array<{id, displayName?, lastUsedDate?, useCount?, isRunning?}>", "notes": "未知显示名被拒时用返回的 bundle identifier 重试" },
+      { "name": "get_app_state", "params": { "app": {"type":"string","required":true}, "disableDiff": {"type":"boolean","required":false} }, "returns": "SkyState", "notes": "每轮首个动作前的落地调用；disableDiff 仅在服务端返回完整树时有效" },
+      { "name": "click", "params": { "app": {"type":"string","required":true}, "element_index": {"type":"number","required":false,"oneOfGroup":"element_index 或 x+y 二选一"}, "x": {"type":"number","required":false}, "y": {"type":"number","required":false}, "mouse_button": {"enum":["left","right","middle","l","r","m"],"required":false}, "click_count": {"type":"integer","required":false} }, "returns": "SkyState", "notes": "AX 元素点击或 SkyLight 免聚焦坐标点击（可达 AX 不可见的 web/canvas 内容）" },
+      { "name": "drag", "params": { "app": {"type":"string","required":true}, "to_app": {"type":"string","required":false,"notes":"跨 app 拖拽目的地，需先双方落地"}, "from_x": {"type":"number","required":true}, "from_y": {"type":"number","required":true}, "to_x": {"type":"number","required":true}, "to_y": {"type":"number","required":true} }, "returns": "SkyState", "notes": "dispatch ≠ 投递成功，需回读目的地状态" },
+      { "name": "perform_secondary_action", "params": { "app": {"type":"string","required":true}, "element_index": {"type":"number","required":true}, "action": {"type":"string","required":true,"notes":"必须是 AX 文本中出现过的方法名"} }, "returns": "SkyState" },
+      { "name": "press_key", "params": { "app": {"type":"string","required":true}, "key": {"type":"string","required":true,"notes":"xdotool 风格；必须含非修饰键，如 super+c"} }, "returns": "SkyState", "notes": "面向命名 app，非全局输入" },
+      { "name": "scroll", "params": { "app": {"type":"string","required":true}, "element_index": {"type":"number","required":true}, "direction": {"enum":["up","down","left","right","u","d","l","r"],"required":true}, "pages": {"type":"number","required":false} }, "returns": "SkyState" },
+      { "name": "select_text", "params": { "app": {"type":"string","required":true}, "element_index": {"type":"number","required":true}, "text": {"type":"string","required":true}, "prefix": {"type":"string","required":false}, "suffix": {"type":"string","required":false}, "selection_type": {"enum":["text","cursor_before","cursor_after"],"required":false} }, "returns": "SkyState" },
+      { "name": "set_value", "params": { "app": {"type":"string","required":true}, "element_index": {"type":"number","required":true}, "value": {"type":"string","required":true} }, "returns": "SkyState", "notes": "非可编辑角色（如 AXStaticText）直接报错；无变化时换原语勿重试" },
+      { "name": "type_text", "params": { "app": {"type":"string","required":true}, "text": {"type":"string","required":true,"notes":"\\n 与 \\r 视作 Return 键"} }, "returns": "SkyState", "notes": "macOS 26 多行/web 输入走亚毫秒不抬窗前台翻转（诚实契约）" }
+    ],
+    "nonParityExtensions": {
+      "description": "全量档 dist/index.js 51 工具与研究 fixture，不进常态产品面（README 明文禁止与 js 并注册）",
+      "source": "运行时包 README「Tools reference」",
+      "entries": ["screenshot", "get_screen_info", "get_ui_tree", "move_mouse", "wait", "get_clipboard", "set_clipboard", "list_windows", "get_active_window", "focus_window", "frame_id 显式坐标点击/拖拽", "全局跨 app 拖拽(80ms/12步/144ms/60ms)", "lock 工具×8（见 lockTools）", "legacy browser_* ×22/13（见 browserUse.legacyFlatTools）"]
+    },
+    "lockTools": {
+      "source": "运行时包 README「(g) Screen-lock」「Locked use」",
+      "entries": [
+        { "name": "get_lock_state", "risk": "safe" },
+        { "name": "prevent_lock", "params": {"seconds": "1-86400"}, "risk": "safe", "notes": "caffeinate 断言" },
+        { "name": "allow_lock", "risk": "safe" },
+        { "name": "wake_display", "params": {"seconds": "1-60, 默认5"}, "risk": "safe" },
+        { "name": "set_locked_operation", "params": {"enable": true, "ttl_ms": "1000-20000", "mode": "visible|privacy"}, "risk": "locked-operation", "notes": "需签名 App 内 opt-in 安装授权插件；一次性授权租约" },
+        { "name": "mark_human_present", "risk": "locked-operation" },
+        { "name": "unlock_screen", "risk": "locked-operation", "notes": "返回 unlocked|unlock_failed|cannot_dismiss_lock" },
+        { "name": "get_locked_operation_status", "risk": "safe" }
+      ]
+    },
+    "safetyGate": {
+      "env": "CCU_SAFETY_MODE = off(default)|prompt|smart|enforce",
+      "enforce": "每个门控工具需 MCP elicitation 人工批准，不可 elicit 即 fail-closed；schema 无 confirm/risk 参数（Codex parity）",
+      "defaultGatedTools": ["click", "drag", "type_text", "press_key", "set_value", "perform_secondary_action", "select_text"]
+    }
+  },
+  "browserUse": {
+    "facade": "@mimo/browser-use → agent.browsers",
+    "source": "运行时包 skills/mimo-browser-use/SKILL.md 全文 + README「Browser Runtime backends」",
+    "selection": [
+      "agent.browsers.get(\"chrome\"|\"edge\"|\"brave\"|\"chromium\"|\"extension\"|\"iab\"|<精确浏览器ID>)",
+      "agent.browsers.getForUrl(url)",
+      "agent.browsers.getDefault()",
+      "nodeRepl.write(await browser.documentation()) — 选中后必须读完整契约且该调用独占收尾"
+    ],
+    "apiShape": {
+      "description": "Codex-shaped 对象图；方法集由所选后端的 documentation() 运行时给出，静态整理如下（来源：README/技能/legacy 工具镜像的语义面）",
+      "namespaces": ["agent.browsers（后端选择/列表）", "browser.tabs（new/列表/claim/清理，turn 边界宿主自动 finalization，无公开 tabs.finalize）", "tab（页面元数据/观察/截图/locator/语义动作）", "browser.locator（role/text/label/placeholder/testid 定位 + click/fill/hover/check/wait）", "agent.documentation.get(topic)（bootstrap-troubleshooting/chrome-troubleshooting/file-uploads 等命名查询）"]
+    },
+    "backends": [
+      { "id": "iab", "description": "宿主内嵌浏览器；Browser Provider descriptor + 用户私有已认证 socket；Electron 对象/cookie/认证/焦点/关闭归宿主", "env": "MIMO_BROWSER_PROVIDER_DESCRIPTOR=<provider.json>; MIMO_BROWSER_DEFAULT=iab", "本机状态": "Browser Provider 目录为空，未发布" },
+      { "id": "extension", "description": "用户真实 Chrome/Edge/Brave/Chromium；MV3 Browser Bridge 扩展 + Native Messaging (com.xiaomi.mimo.browser) + chrome.debugger CDP 1.3；无 remote-debugging 端口", "env": "MIMO_BROWSER_EXTENSION=1; MIMO_BROWSER_DEFAULT=extension" },
+      { "id": "managed", "description": "显式安装的 Chrome for Testing Stable（mimo-browser-use install → ~/.mimo-browser-use/browsers）；MCP 启动绝不静默下载；临时 profile + 随机 CDP 端口", "env": "MIMO_BROWSER_DEFAULT=managed; MIMO_BROWSER_CACHE_DIR" },
+      { "id": "cdp", "description": "显式 raw CDP endpoint（自启 Chromium 兼容浏览器）", "env": "MIMO_BROWSER_CDP_URL=http://127.0.0.1:<port>" }
+    ],
+    "extensionTransport": {
+      "topology": "MCP server ──unix socket──► Node host (dist/browser/host.js) ──Chromium Native Messaging (JSON-RPC 2.0)──► Browser Bridge MV3 ──chrome.debugger (CDP 1.3)──► page",
+      "nativeHost": "com.xiaomi.mimo.browser（allowed_origins 钉死商店扩展 ID hdegpkcbaiojkelbocodjnnaglojjlam / dbgblfpnkbjkklfekngphekkapoejffa）",
+      "permissions": ["alarms", "bookmarks", "debugger", "downloads", "history", "storage", "tabs", "nativeMessaging", "scripting", "tabGroups", "webNavigation", "host_permissions:<all_urls>"],
+      "publicCdpAllowlist": "观察域为主（Accessibility.*/CSS.*/DOM.* 等）；语义自动化内部走 executeCdp；可重入方法（Fetch.continue* 等）单独识别",
+      "presentation": "closed-Shadow-DOM 虚拟光标按需注入，≤1.5s 动画可观察后才派发真实 CDP 输入；呈现失败不阻塞动作"
+    },
+    "legacyFlatTools": {
+      "description": "研究/兼容 fixture，不与 js 并注册",
+      "playwrightBackend": 22,
+      "extensionBackend": 13,
+      "names": ["browser_launch", "browser_goto", "browser_screenshot", "browser_click", "browser_click_xy", "browser_type", "browser_press_key", "browser_get_text", "browser_eval", "browser_tabs", "browser_get_by", "browser_wait_for", "browser_dom_snapshot", "browser_scroll", "browser_exec", "browser_logs", "browser_dialog", "browser_clipboard", "browser_claim_tab", "browser_history", "browser_new_tab", "browser_close"]
+    }
+  },
+  "hostEngineTools": {
+    "description": "MiMoCode 宿主引擎内置工具（非 CU/BU，但与 js 同为模型工具面）",
+    "source": "~/Library/Application Support/Xiaomi MiMo AI/engine-config/tools/（15 个脚本）+ prompts/claude.txt + skills/session-chat",
+    "core": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebSearch", "WebFetch(模型提示层)", "task", "actor(spawn|run)", "ask", "js"],
+    "engineTools": ["contacts", "create_session", "update_session", "talk_to_session(sync|async)", "list_external_sessions", "read_external_sessions", "image_gen", "image_edit", "asr_transcribe", "tts_speech", "pdf_locate", "present_files", "get_desktop_settings", "set_desktop_setting", "automation_update"]
+  },
+  "endpoints": {
+    "source": "asar 主进程 URL 提取 + CU 包 publishConfig",
+    "llm": ["https://api.xiaomimimo.com/v1", "https://token-plan-cn.xiaomimimo.com/v1", "https://token-plan-sgp.xiaomimimo.com/v1", "https://token-plan-ams.xiaomimimo.com/v1"],
+    "protocol": ["anthropic-messages (v1/messages + anthropic-beta)", "openai (chat/completions)"],
+    "models": ["xiaomi/mimo-v2.5", "mimo-v2.5-pro", "mimo-v2-pro", "mimo-v2-flash", "mimo-v2.5-tts"],
+    "internalRegistry": "https://pkgs.d.xiaomi.net/artifactory/api/npm/mi-npm/ (@mi scope, restricted)",
+    "configSchema": "https://mimo.xiaomi.com/mimocode/config.json",
+    "webStore": "https://chromewebstore.google.com/detail/browser-bridge/hdegpkcbaiojkelbocodjnnaglojjlam"
+  },
+  "identity": {
+    "source": "运行时包 product-identities.json + bin/mcp 启动校验 + codesign",
+    "appleTeamId": "DG75VEYT9V",
+    "developerId": "Developer ID Application: Beijing Xiaomi Co., Ltd (DG75VEYT9V)",
+    "bundleIds": {
+      "computerUse": "com.xiaomi.mimo.computeruse",
+      "computerUseDev": "com.xiaomi.mimo.computeruse.dev",
+      "browserUse": "com.xiaomi.mimo.browseruse",
+      "recordAndReplay": "com.xiaomi.mimo.recordandreplay",
+      "lockPlugin": "com.xiaomi.mimo.computeruse.authorizationplugin",
+      "lockInstallerHelper": "com.xiaomi.mimo.computeruse.lockcontrol",
+      "desktopApp": "com.xiaomi.mimo.desktop-ai",
+      "browserExtensionHost": "com.xiaomi.mimo.browser"
+    },
+    "launchValidation": "current 符号链接落点 → Info.plist channel:namespace:bundleId → codesign --deep --strict → TeamIdentifier:Authority 钉死 → App 内嵌 TS build receipt 校验 runtime"
+  }
+}

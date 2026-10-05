@@ -1,0 +1,234 @@
+{
+  "_provenance": {
+    "status": "文档",
+    "agent": "goose",
+    "evidence": [
+      "agents/goose/computer-use.md",
+      "agents/goose/browser-use.md",
+      "agents/goose/evidence/inventory.md §C §D §E"
+    ],
+    "note": "手写整理的接口事实（从上游 Apache-2.0 源码的 Rust struct / #[tool] 宏描述转写为 JSON Schema 风格），非反编译产物。基线：block/goose v1.53.0, commit 5bd5e548（2026-10-05）。本机无安装，故无实测成分；每条目 source 字段标注上游文件:行号。"
+  },
+  "builtin_extension": {
+    "id": "computercontroller",
+    "display_name": "Computer Controller",
+    "kind": "builtin_mcp_in_process",
+    "default_enabled": false,
+    "timeout_seconds": 300,
+    "feature_gate": "computer-controller",
+    "source": "crates/goose-mcp/src/lib.rs:22-43,89-99; ui/desktop/src/built-in-extensions.json",
+    "platforms": {
+      "macos": ["computer_control", "xlsx_tool", "docx_tool", "pdf_tool"],
+      "linux": ["xlsx_tool", "docx_tool", "pdf_tool"],
+      "windows": ["xlsx_tool", "docx_tool", "pdf_tool"],
+      "note": "computer_control 仅注册于 target_os = macos（tool_router_macos 条件编译）"
+    },
+    "execution_backend": {
+      "type": "external_cli_passthrough",
+      "cli": "peekaboo",
+      "cli_upstream": "https://github.com/steipete/peekaboo",
+      "cli_license": "MIT",
+      "auto_install": "首次调用时 which peekaboo 检测，缺失则 brew install steipete/tap/peekaboo，并把 $(brew --prefix)/bin 修入子进程 PATH",
+      "os_requirements": "macOS 15+；TCC：Screen Recording + Accessibility（由 peekaboo 二进制触发，goose 不管理）",
+      "source": "crates/goose-mcp/src/peekaboo/mod.rs:1-85; computercontroller/mod.rs:390-417"
+    }
+  },
+  "tools": [
+    {
+      "name": "computer_control",
+      "extension": "computercontroller",
+      "capability": "computer_use",
+      "description": "macOS UI automation via Peekaboo CLI. Pass a subcommand string as `command`. Core workflow: see → click → type. Key commands: see, image, click, type, press, hotkey, paste, scroll, drag, swipe, move, app, window, list, menu, menubar, dock, dialog, clipboard, space, open, permissions.",
+      "parameters": {
+        "type": "object",
+        "required": ["command"],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The peekaboo subcommand and arguments as a single string. Examples: \"see --app Safari --annotate\"; \"click --on B1\"; \"type \\\"hello\\\" --return\"; \"hotkey --keys cmd,c\"; \"app launch Safari --open https://example.com\"; \"window list --app Safari --json\"; \"press tab --count 3\"; \"clipboard --action get\""
+          },
+          "capture_screenshot": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether to capture and return a screenshot as part of the result. Useful after click/type actions to see the updated UI state."
+          }
+        }
+      },
+      "returns": {
+        "content_blocks": [
+          { "type": "text", "notes": "peekaboo stdout；超过 12000 字符截断并附 [Output truncated. N total chars.]；带 annotations.audience=[assistant]" },
+          { "type": "image", "mime": "image/png", "notes": "base64 编码。see/image 命令返回本次截图（存在 *_annotated.png 时返回标注版）；capture_screenshot=true 时动作后补拍 image --mode frontmost" }
+        ]
+      },
+      "behavior": {
+        "tokenization": "shell_words::split（POSIX 风格）；空命令 → INVALID_PARAMS",
+        "auto_flags": {
+          "see": ["--path <cache>/see_<timestamp>.png", "--json-output"],
+          "image": ["--path <cache>/image_<timestamp>.png"],
+          "list|window|menubar|permissions|clipboard": ["--json"]
+        },
+        "cache_dir": "~/.cache/goose/computer_controller/（Windows: %LOCALAPPDATA%\\Block\\goose\\cache\\computer_controller）",
+        "timeout": "工具级 timeout 300s（builtin extensions 默认）；peekaboo 子进程本身无超时",
+        "no_session_semantics": "无 lease/generation/后台交付/急停；--snapshot 复用与焦点控制（--no-auto-focus 等）由 peekaboo 自身参数提供"
+      },
+      "source": "crates/goose-mcp/src/computercontroller/mod.rs:27-39,253-360(instructions),451-576(impl),852-871(tool)"
+    },
+    {
+      "name": "xlsx_tool",
+      "extension": "computercontroller",
+      "capability": "office_document",
+      "description": "Process Excel (XLSX) files: list_worksheets / get_columns / get_range / find_text / update_cell / get_cell / save.",
+      "parameters": {
+        "type": "object",
+        "required": ["path", "operation"],
+        "properties": {
+          "path": { "type": "string", "description": "Path to the XLSX file" },
+          "operation": { "type": "string", "enum": ["list_worksheets", "get_columns", "get_range", "find_text", "update_cell", "get_cell", "save"] },
+          "worksheet": { "type": "string", "description": "Worksheet name（缺省第一个）" },
+          "range": { "type": "string", "description": "A1 记法，如 'A1:C10'（get_range）" },
+          "search_text": { "type": "string", "description": "find_text 搜索文本" },
+          "case_sensitive": { "type": "boolean", "default": false },
+          "row": { "type": "integer", "description": "update_cell/get_cell 行号" },
+          "col": { "type": "integer", "description": "update_cell/get_cell 列号" },
+          "value": { "type": "string", "description": "update_cell 新值" }
+        }
+      },
+      "source": "crates/goose-mcp/src/computercontroller/mod.rs:188-214,565-600"
+    },
+    {
+      "name": "docx_tool",
+      "extension": "computercontroller",
+      "capability": "office_document",
+      "description": "Word (DOCX) extract_text / update_doc（mode: append|replace|structured|add_image，支持 bold/italic/underline/size/color/alignment 样式）.",
+      "parameters": {
+        "type": "object",
+        "required": ["path", "operation"],
+        "properties": {
+          "path": { "type": "string" },
+          "operation": { "type": "string", "enum": ["extract_text", "update_doc"] },
+          "content": { "type": "string", "description": "update_doc 所需正文" },
+          "params": {
+            "type": "object",
+            "description": "update_doc 附加参数（DocxUpdateParams）",
+            "properties": {
+              "mode": { "type": "string", "enum": ["append", "replace", "structured", "add_image"], "default": "append" },
+              "old_text": { "type": "string", "description": "replace 模式必填" },
+              "level": { "type": "string", "description": "structured 模式标题级别，如 'Heading1'" },
+              "image_path": { "type": "string", "description": "add_image 模式必填" },
+              "width": { "type": "integer" },
+              "height": { "type": "integer" },
+              "style": {
+                "type": "object",
+                "properties": {
+                  "bold": { "type": "boolean" },
+                  "italic": { "type": "boolean" },
+                  "underline": { "type": "boolean" },
+                  "size": { "type": "integer", "description": "pt" },
+                  "color": { "type": "string", "description": "hex，如 'FF0000'" },
+                  "alignment": { "type": "string", "enum": ["left", "center", "right", "justified"] }
+                }
+              }
+            }
+          }
+        }
+      },
+      "source": "crates/goose-mcp/src/computercontroller/mod.rs:56-169,764-800"
+    },
+    {
+      "name": "pdf_tool",
+      "extension": "computercontroller",
+      "capability": "office_document",
+      "description": "PDF extract_text / extract_images（图片存为 PNG）.",
+      "parameters": {
+        "type": "object",
+        "required": ["path", "operation"],
+        "properties": {
+          "path": { "type": "string" },
+          "operation": { "type": "string", "enum": ["extract_text", "extract_images"] }
+        }
+      },
+      "source": "crates/goose-mcp/src/computercontroller/mod.rs:48-62,813-840"
+    }
+  ],
+  "browser": {
+    "builtin_tools": [],
+    "note": "Goose 内核与桌面端均无内置浏览器控制工具（crates/ 全树无 CDP/WebDriver 实现；desktop webview 导航不暴露给 agent）。浏览器能力 = 外部 MCP 扩展，工具 schema 归各上游，此处仅列官方收录条目的安装面。",
+    "official_catalog_extensions": [
+      {
+        "id": "playwright",
+        "name": "Playwright",
+        "install_command": "npx -y @playwright/mcp@latest",
+        "capability": "跨 Chromium/WebKit 自动化与 web 测试（官方主推）",
+        "upstream": "https://github.com/microsoft/playwright-mcp",
+        "goose_doc": "documentation/docs/mcp/playwright-mcp.md"
+      },
+      {
+        "id": "chrome-devtools-mcp",
+        "name": "Chrome DevTools",
+        "install_command": "npx -y chrome-devtools-mcp@latest",
+        "capability": "Chrome 自动化、性能测试、web 调试",
+        "upstream": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+        "goose_doc": "documentation/docs/mcp/chrome-devtools-mcp.md"
+      },
+      {
+        "id": "selenium-mcp",
+        "name": "Selenium MCP",
+        "install_command": "npx -y @angiejones/mcp-selenium",
+        "capability": "网页导航与表单自动化（WebDriver）",
+        "upstream": "https://github.com/angiejones/mcp-selenium",
+        "goose_doc": "documentation/docs/mcp/selenium-mcp.md"
+      },
+      {
+        "id": "puppeteer",
+        "name": "Puppeteer",
+        "install_command": "npx -y @modelcontextprotocol/server-puppeteer",
+        "capability": "无头浏览器自动化（server 已 archived，文档 unlisted）",
+        "upstream": "https://github.com/modelcontextprotocol/servers (archived subdir)",
+        "goose_doc": "documentation/docs/mcp/puppeteer-mcp.md"
+      },
+      {
+        "id": "browserbase-mcp",
+        "name": "Browserbase",
+        "install_command": "npx -y @browserbasehq/mcp",
+        "env": ["BROWSERBASE_PROJECT_ID", "BROWSERBASE_API_KEY", "GEMINI_API_KEY"],
+        "capability": "云端浏览器：导航、交互、抓取",
+        "upstream": "https://github.com/browserbasehq/mcp",
+        "goose_doc": "documentation/docs/mcp/browserbase-mcp.md"
+      }
+    ],
+    "install_mechanics": {
+      "deeplink": "goose://extension?cmd=…&arg=…&id=…&name=…&description=…&env=…",
+      "config_shape": "config.yaml extensions.<key>: {enabled, type: stdio, cmd, args, envs, env_keys, timeout, cwd, bundled}（或 type: streamable_http {uri}；SSE 已禁用）",
+      "enterprise_allowlist": "GOOSE_ALLOWLIST env → YAML URL，extensions: [{id, command}]，按安装命令白名单放行",
+      "source": "crates/goose/src/agents/extension.rs:156-216; documentation/docs/guides/allowlist.md"
+    },
+    "cu_fallback": "computer_control 'open <url> --app <浏览器>' / 'app launch <浏览器> --open <url>' + see --annotate + click 即可用屏幕控制驱动浏览器（官方教程示例形态）"
+  },
+  "permission_model": {
+    "goose_mode": {
+      "enum": ["auto", "approve", "smart_approve", "chat"],
+      "default": "auto",
+      "labels": {
+        "auto": "Automatically approve tool calls",
+        "approve": "Ask before every tool call",
+        "smart_approve": "Ask only for sensitive tool calls",
+        "chat": "Chat only, no tool calls"
+      },
+      "source": "crates/goose-provider-types/src/goose_mode.rs:22-32"
+    },
+    "permission_level": {
+      "enum": ["always_allow", "ask_before", "never_allow"],
+      "storage": "~/.config/goose/permission.yaml（按扩展名分组三张名单；类别含 user 与 smart_approve）",
+      "source": "crates/goose/src/config/permission.rs:13-43"
+    },
+    "runtime_decision": {
+      "enum": ["always_allow", "allow_once", "cancel", "deny_once", "always_deny"],
+      "source": "crates/goose-provider-types/src/permission.rs:5-14"
+    },
+    "llm_review_layers": [
+      { "name": "smart_approve", "mechanism": "内部 LLM 工具 platform__tool_by_tool_permission 判定请求是否严格只读；只读放行；请求 ID/参数视为不可信；无法判定即非只读", "source": "crates/goose/src/permission/permission_judge.rs:44-80" },
+      { "name": "adversary_mode", "mechanism": "~/.config/goose/adversary.md 规则文件存在即启用；独立 agent 对每个工具调用 ALLOW/BLOCK 复核；fail-open", "source": "documentation/docs/guides/security/adversary-mode.md" }
+    ],
+    "cu_specific": "无 CU 专用分级（无应用 tier/按应用授权/急停）；TCC 两权限（Screen Recording + Accessibility）由 peekaboo 触发并归操作系统管理"
+  }
+}

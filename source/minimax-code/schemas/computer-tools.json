@@ -1,0 +1,574 @@
+{
+  "_provenance": {
+    "status": "实测（app.asar 静态逆向）",
+    "evidence": [
+      "agents/minimax-code/computer-use.md §5（17 工具全表：kind/payload 域/驱动映射/语义）",
+      "agents/minimax-code/evidence/inventory.md B 节（tools.ts ACTIONS 常量表、cua-utility-server.js mapRequestToCuaTool）"
+    ],
+    "original_path": "/Applications/MiniMax Code.app/Contents/Resources/app.asar → node_modules/@mavis/local-runtime-v2/src/service/computer-use/tools.ts + dist/main/modules/local-runtime/computer-use/cua-utility-server.js",
+    "confidence": "工具清单/kind/映射/错误码=高（直接读到 schema 常量与映射函数）；个别参数的精确 JSON Schema 约束（如枚举字面量）为分册摘要，未逐字段还原=中",
+    "notes": "schema 均为 additionalProperties:false 的 JSON Schema（typebox Type.Unsafe 包装）；数值型参数自动接受十进制字符串"
+  },
+  "tool_prefix": "computer_",
+  "delivery_routes": {
+    "background": "AX/UIA 可访问性注入，不抢焦点；为默认路由",
+    "foreground": "HID 事件 + 抢焦点；须事先向用户公告；app_activate/app_launch/secondary_action、delivery_mode='foreground'、target.kind='desktop' 一律按 foreground 计",
+    "no_escalation": "background 被应用拒绝时运行时绝不自动改发 foreground（callCuaToolWithDeliveryMode）"
+  },
+  "target_rules": {
+    "element_token_vs_coordinates": "element_token 与 x/y 互斥，同时出现报 computer_conflicting_input_target",
+    "null_equivalence": "click/type/key/select_text/scroll 的 pid/window_ref/element_token/x/y 允许显式 null（等价省略），用于抑制弱模型乱填 0 值坐标",
+    "desktop_scope": "仅 click/key/type 开放 desktop scope（否则 computer_unsupported_desktop_action）；desktop key/type 不接受坐标"
+  },
+  "result_envelope": {
+    "content": "首块 text（排版摘要），随后可附 type:'image' 截图块（≤7MB，畸形/不支持格式 fail-closed 不注入）",
+    "degraded_rule": "computer_app_state 若 AX 未解析（degraded_reason 以 ax_window_unresolved 开头）则丢弃全部图片并标 isError",
+    "no_screenshot_hint": "无截图的 app_state 在文本头部注入『本次观察不含截图，不要把上一张图当作当前渲染状态』",
+    "click_effect_hint": "click 无结构化 effect 元数据时注入『点击回执不证明效果，先读新状态』（missingClickEffectGuidance）",
+    "structured_json": "结构化 JSON 透传 details.structuredJson（UI 用，LLM 不读）"
+  },
+  "tools": [
+    {
+      "name": "computer_app_list",
+      "kind": "app_list",
+      "maps_to_cua_tool": "list_apps",
+      "category": "observe",
+      "description": "发现运行中/已安装应用；已安装未运行的应用返回 bundle_id 供直接 launch",
+      "params": {
+        "name": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_window_list",
+      "kind": "window_list",
+      "maps_to_cua_tool": "list_windows",
+      "category": "observe",
+      "description": "某进程的原生窗口精确清单（window_ref、on_current_space 等）",
+      "params": {
+        "pid": {
+          "type": "integer",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "computer_display_list",
+      "kind": "display_list",
+      "maps_to_cua_tool": "host_display_list",
+      "category": "observe",
+      "description": "显示器边界/工作区/缩放/光标坐标（electron_dip 空间）；不走 CUA 驱动，由宿主以 Electron screen API 自有实现",
+      "params": {}
+    },
+    {
+      "name": "computer_window_set_frame",
+      "kind": "window_set_frame",
+      "maps_to_cua_tool": "set_window_frame",
+      "category": "window",
+      "description": "移动/缩放窗口；desktop 坐标而非截图像素",
+      "params": {
+        "pid": {
+          "type": "integer",
+          "required": true
+        },
+        "window_ref": {
+          "type": "string",
+          "required": true
+        },
+        "x": {
+          "type": "number",
+          "required": true
+        },
+        "y": {
+          "type": "number",
+          "required": true
+        },
+        "width": {
+          "type": "number",
+          "required": false
+        },
+        "height": {
+          "type": "number",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_desktop_state",
+      "kind": "desktop_state",
+      "maps_to_cua_tool": "get_desktop_state",
+      "category": "observe",
+      "description": "主显示器截图；多显示器时固定主屏（工具描述明示这是刻意门面）",
+      "params": {}
+    },
+    {
+      "name": "computer_app_launch",
+      "kind": "app_launch",
+      "maps_to_cua_tool": "launch_app",
+      "category": "app",
+      "description": "后台启动应用；macOS 可用 file:// URL 开文档",
+      "params": {
+        "name": {
+          "type": "string",
+          "required": false,
+          "note": "与 bundle_id 二选一"
+        },
+        "bundle_id": {
+          "type": "string",
+          "required": false
+        },
+        "urls": {
+          "type": "array",
+          "required": false,
+          "note": "file:// 等"
+        },
+        "launch_path": {
+          "type": "string",
+          "required": false,
+          "note": "仅 Windows"
+        }
+      }
+    },
+    {
+      "name": "computer_app_activate",
+      "kind": "app_activate",
+      "maps_to_cua_tool": "bring_to_front",
+      "category": "app",
+      "description": "持久激活（抢焦点）；工具描述强制要求事先向用户说明（foreground 公告义务）",
+      "params": {
+        "pid": {
+          "type": "integer",
+          "required": true
+        },
+        "window_ref": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_app_state",
+      "kind": "app_state",
+      "maps_to_cua_tool": "get_window_state",
+      "category": "observe",
+      "description": "核心观察：AX/UIA 语义树 + 可选窗口截图 + element_token；query 支持语义文本过滤",
+      "params": {
+        "pid": {
+          "type": "integer",
+          "required": true
+        },
+        "window_ref": {
+          "type": "string",
+          "required": true
+        },
+        "include_screenshot": {
+          "type": "boolean",
+          "required": false
+        },
+        "query": {
+          "type": "string",
+          "required": false
+        },
+        "max_depth": {
+          "type": "integer",
+          "required": false
+        },
+        "max_elements": {
+          "type": "integer",
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_click",
+      "kind": "click",
+      "maps_to_cua_tool": "click（click_count:2 + 左键 + 元素 token 时走 AXOpen 专用 double_click 路径）",
+      "category": "interact",
+      "description": "元素 token 定位或截图像素坐标定位，二者互斥",
+      "params": {
+        "scope": {
+          "enum": [
+            "window",
+            "desktop"
+          ],
+          "required": false
+        },
+        "element_token": {
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "x": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "y": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "action": {
+          "enum": [
+            "auto",
+            "press",
+            "show_menu",
+            "pick",
+            "confirm",
+            "cancel",
+            "open"
+          ],
+          "required": false
+        },
+        "button": {
+          "enum": [
+            "left",
+            "right",
+            "middle"
+          ],
+          "required": false
+        },
+        "click_count": {
+          "type": "integer",
+          "required": false
+        },
+        "delivery_mode": {
+          "enum": [
+            "background",
+            "foreground"
+          ],
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_drag",
+      "kind": "drag",
+      "maps_to_cua_tool": "drag",
+      "category": "interact",
+      "description": "从 from 到 to 拖拽；macOS 0.22.1 仅支持 foreground（工具描述写死，避免模型探测已知不支持的 background 路由）",
+      "params": {
+        "from_x": {
+          "type": "number",
+          "required": true
+        },
+        "from_y": {
+          "type": "number",
+          "required": true
+        },
+        "to_x": {
+          "type": "number",
+          "required": true
+        },
+        "to_y": {
+          "type": "number",
+          "required": true
+        },
+        "delivery_mode": {
+          "enum": [
+            "foreground"
+          ],
+          "required": false,
+          "note": "macOS 仅 foreground"
+        }
+      }
+    },
+    {
+      "name": "computer_type",
+      "kind": "type",
+      "maps_to_cua_tool": "type_text",
+      "category": "interact",
+      "description": "UTF-8 文本输入；明确禁止用 shell/AppleScript 替代",
+      "params": {
+        "text": {
+          "type": "string",
+          "required": true
+        },
+        "element_token": {
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "x": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "y": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "delivery_mode": {
+          "enum": [
+            "background",
+            "foreground"
+          ],
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_set_value",
+      "kind": "set_value",
+      "maps_to_cua_tool": "set_value",
+      "category": "edit",
+      "description": "仅可访问性写值，无 delivery_mode；值变了不等于输入处理器执行过，需验证依赖 UI",
+      "params": {
+        "value": {
+          "type": "string",
+          "required": true
+        },
+        "element_token": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "computer_select_text",
+      "kind": "select_text",
+      "maps_to_cua_tool": "hotkey [Cmd/Ctrl, a]",
+      "category": "edit",
+      "description": "全选字段文本；foreground 坐标路由会先点击聚焦",
+      "params": {
+        "element_token": {
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "x": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "y": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "delivery_mode": {
+          "enum": [
+            "background",
+            "foreground"
+          ],
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_key",
+      "kind": "key",
+      "maps_to_cua_tool": "press_key（foreground + 坐标 + 修饰键时改派 hotkey，规避 macOS 14 修饰键和弦丢失）",
+      "category": "interact",
+      "description": "单键名 + 分离的修饰键数组；箭头键名归一化",
+      "params": {
+        "key": {
+          "type": "string",
+          "required": true
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "cmd",
+              "win",
+              "shift",
+              "option",
+              "alt",
+              "ctrl",
+              "fn"
+            ]
+          },
+          "required": false
+        },
+        "scope": {
+          "enum": [
+            "window",
+            "desktop"
+          ],
+          "required": false
+        },
+        "element_token": {
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "x": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "y": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "delivery_mode": {
+          "enum": [
+            "background",
+            "foreground"
+          ],
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_scroll",
+      "kind": "scroll",
+      "maps_to_cua_tool": "scroll",
+      "category": "interact",
+      "description": "amount 是滚轮格数不是像素",
+      "params": {
+        "direction": {
+          "enum": [
+            "up",
+            "down",
+            "left",
+            "right"
+          ],
+          "required": true
+        },
+        "by": {
+          "enum": [
+            "line",
+            "page"
+          ],
+          "required": false
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "required": false
+        },
+        "element_token": {
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "x": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "y": {
+          "type": "number",
+          "required": false,
+          "nullable": true
+        },
+        "delivery_mode": {
+          "enum": [
+            "background",
+            "foreground"
+          ],
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_secondary_action",
+      "kind": "secondary_action",
+      "maps_to_cua_tool": "invoke_menu",
+      "category": "menu",
+      "description": "按完整菜单路径调用原生菜单；其余 AX 动作名 fail-closed",
+      "params": {
+        "action": {
+          "enum": [
+            "show_menu"
+          ],
+          "required": true
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "computer_verify_state",
+      "kind": "verify_state",
+      "maps_to_cua_tool": "verify_state",
+      "category": "verify",
+      "description": "结构化后置条件验证：expect 内 1-8 个谓词 AND",
+      "params": {
+        "expect": {
+          "type": "array",
+          "min_items": 1,
+          "max_items": 8,
+          "required": true,
+          "predicate_kinds": [
+            "window.exists",
+            "window.bounds",
+            "element role+label_contains × exists",
+            "element role+label_contains × value_equals",
+            "element role+label_contains × enabled",
+            "element role+label_contains × selected"
+          ]
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "maximum": 10000,
+          "required": false
+        },
+        "stable_samples": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "required": false
+        },
+        "include_screenshot": {
+          "type": "boolean",
+          "required": false
+        }
+      }
+    }
+  ],
+  "error_codes": [
+    {
+      "code": "computer_conflicting_input_target",
+      "when": "element_token 与 x/y 同时出现",
+      "confidence": "高（分册原文）"
+    },
+    {
+      "code": "computer_unsupported_desktop_action",
+      "when": "desktop scope 用于 click/key/type 之外",
+      "confidence": "高"
+    },
+    {
+      "code": "computer_window_not_found",
+      "when": "window_ref 解析失败；宿主翻译为 windowTargetRecovery 修复指令（刷新 app_list → window_list → 用观察到的 window_ref → 禁止猜相邻窗口 ID → 禁止改用 Bash/AppleScript）",
+      "confidence": "高"
+    },
+    {
+      "code": "computer_ambiguous_window_target",
+      "when": "窗口目标歧义；同样进入 windowTargetRecovery",
+      "confidence": "高"
+    },
+    {
+      "code": "computer_window_ref_required",
+      "when": "缺少 window_ref；同样进入 windowTargetRecovery",
+      "confidence": "高"
+    },
+    {
+      "code": "computer_secondary_action_unsupported",
+      "when": "secondary_action 使用 show_menu 之外的 AX 动作名（fail-closed）",
+      "confidence": "高"
+    },
+    {
+      "code": "computer_generation_mismatch",
+      "when": "控制消息 generation 与当前 utility 进程代际不符（旧进程/旧通道串话防护）",
+      "confidence": "高"
+    },
+    {
+      "code": "lease_held_by_other",
+      "when": "变更类请求时租约被其他会话持有，原文 'Another conversation owns the computer control lease.'",
+      "confidence": "高（日志原文）"
+    }
+  ]
+}

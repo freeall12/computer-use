@@ -1,0 +1,63 @@
+{
+  "_provenance": {
+    "status": "实测（MCP 配置与 SKILL.md 全文 + Bridge 二进制 strings）",
+    "evidence": [
+      "agents/qoder/computer-use.md §4.3（Record & Replay 3 工具与产品语义）",
+      "agents/qoder/evidence/inventory.md C2/C3/C10/C11（event-stream server 3 工具、.mcp.json timeout 220000、Bridge 工具描述原文、SKILL 产物语义）"
+    ],
+    "original_path": "/Applications/Qoder.app/Contents/Resources/extensions/qoder.computer-control/dist/cli/recordAndReplay/{.mcp.json,skills/record-and-replay/SKILL.md} + Bridge 二进制 strings",
+    "confidence": "工具清单与参数=高；录制产物内部格式=中（SKILL 描述，未拿到样例文件）",
+    "notes": "macOS ≥14；开关 qoder.computer-control.recordAndReplay.enabled 默认 false；MCP server 名 event-stream"
+  },
+  "mcp_server": {
+    "name": "event-stream",
+    "transport": "stdio",
+    "timeout_ms": 220000,
+    "env_vars": [
+      "QODER_HOME",
+      "QODER_CHAT_SESSION_ID"
+    ]
+  },
+  "tools_3": [
+    {
+      "name": "event_stream_start",
+      "params": {
+        "max_duration_seconds": "1–3600（默认 1800）",
+        "screenshot_mode": "off（默认）| window_changes（窗口切换）| interaction_settled（交互后视觉稳定帧）"
+      },
+      "semantic": "启动录制；弹原生审批窗；悬浮控制条（RecordReplayRecordingControlsWindow）可停止并选择保留/丢弃"
+    },
+    {
+      "name": "event_stream_status",
+      "params": {},
+      "semantic": "查询录制状态"
+    },
+    {
+      "name": "event_stream_stop",
+      "params": {},
+      "semantic": "停止录制；结束后 Qoder 自动唤醒原 ChatSession（固定话术 I'm done recording. / I've cancelled recording.）"
+    }
+  ],
+  "artifacts": {
+    "events.jsonl": "主证据",
+    "session.json": "生命周期（录制 id、起止、endReason）",
+    "suppressedEventsPath": "被抑制事件诊断（安全输入、禁录 app/URL、工具自身活动）"
+  },
+  "event_types": [
+    "window.changed",
+    "selection.changed",
+    "mouse.click",
+    "mouse.drag",
+    "mouse.context_menu",
+    "keyboard.text_input",
+    "keyboard.submit",
+    "keyboard.shortcut"
+  ],
+  "ax_context": "fullTree 或 unified-diff 形态的 diffFromPrevious；secure text field 焦点时键盘输入被省略",
+  "skill_generation_loop": [
+    "agent 读事件流推断可复用意图（区分稳定步骤与偶发时序）",
+    "生成 ~/.qoder/skills/<kebab-name>/SKILL.md（格式同 Claude Code skills，重名会被目录剔除）",
+    "敏感值必须转成显式输入或占位符；禁止把录制工件路径与个人数据写进 Skill",
+    "回放指导：识别稳定 app/窗口/语义控件，避免纯坐标回放"
+  ]
+}

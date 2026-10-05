@@ -1,0 +1,86 @@
+{
+  "_provenance": {
+    "status": "文档+实测",
+    "evidence": [
+      "agents/codex/computer-use.md §3（cua 编程面完整还原）、§4（观察）、§5（动作）",
+      "agents/codex/evidence/inventory.md §2.4（@oai/cua 随包官方文档清单）、§3.1–§3.3（SkyClient 类型与 native-pipe 反混淆）"
+    ],
+    "note": "手写整理 @oai/cua@0.2.5（本机实装）tinyskyAlt 面的接口事实。接口成员逐字来自随包官方文档 tinysky-alt-core-*.md 与 types.d.ts（分册明示为『随包分发的官方规范』）；传输形状来自 evidence §3.3 对 native-pipe.js 的反混淆记录。"
+  },
+  "globalName": "cua",
+  "runtime": "cua_repl（持久 Node REPL MCP server）；banner = await import(\"@oai/cua/tinyskyAlt\")",
+  "topLevel": {
+    "initialize": "Promise<State>（node_repl 版；cua_repl 版无）",
+    "getState?": "(options?: ObservationOptions) => Promise<State>",
+    "rewriteDocumentation?": "上下文被压缩后重放全部已读文档",
+    "getApp": "(target: string | { windowId: number }) => Promise<App>（接受名字/完整路径/bundle id；可后台拉起应用）",
+    "listApps": "(options?) => Promise<AppInfo[]>",
+    "listWindows?": "Linux/Windows 限定",
+    "browsers?": "浏览器半边（见 browsers 成员）",
+    "computer?": "sky 客户端逃逸口（typeof sky）",
+    "getBrowser? / createBrowserTab? / getTab? / listBrowsers? / listTabs?": "浏览器半边入口"
+  },
+  "interfaces": {
+    "ObservationOptions": { "emit": "boolean（是否自动回显给模型）" },
+    "StateOptions": { "extends": "ObservationOptions", "disableDiffing": "boolean（取全量树）" },
+    "State": { "apps": "AppInfo[]", "browsers": "BrowserState[]", "errors?": "string[]（清单错误按条目隔离）" },
+    "Target": {
+      "note": "App 与 Tab 共享的交互面",
+      "getAXState": "(options?: StateOptions) => Promise<string>（AX 树，默认 diff）",
+      "getScreenshot": "(options?: ObservationOptions) => Promise<Uint8Array>",
+      "getAXStateAndScreenshot": "(options?) => Promise<{state: string, screenshot?: Uint8Array}>",
+      "click": "(target: number | Vec2, options?: ClickOptions) => Promise<void>",
+      "drag": "(from: Vec2, to: Vec2) => Promise<void>",
+      "scroll": "(target: number | Vec2, direction: Direction, pages?: number) => Promise<void>",
+      "selectText": "(elementIndex: number, text: string, options?: SelectTextOptions) => Promise<void>",
+      "setValue": "(elementIndex: number, value: string) => Promise<void>",
+      "performSecondaryAction": "(elementIndex: number, action: string) => Promise<void>"
+    },
+    "App": {
+      "extends": "Target",
+      "scroll": "mac 收页数；Windows 必须 {pixels: number} 且坐标目标",
+      "paste": "(text: string, options?: {format: 'text'|'md'|'html'}) => Promise<void>（mac 走系统剪贴板并恢复用户原剪贴板）",
+      "pressKey": "(key: string) => Promise<void>（xdotool 风格：'super+c'、'KP_0'、'Return'）",
+      "typeText": "(text: string) => Promise<void>"
+    },
+    "ClickOptions": { "mouseButton": "'left'|'right'|'middle'|'l'|'r'|'m'", "clickCount": "number" },
+    "SelectTextOptions": { "prefix?": "string", "suffix?": "string", "selectionType?": "'text'|'cursor_before'|'cursor_after'" },
+    "Direction": "'up'|'down'|'left'|'right'|'u'|'d'|'l'|'r'"
+  },
+  "browsers": {
+    "getTab": "({mention}|{url}, {browser?}?) | (tabId, {browser}) => Promise<Tab>（唯一精确匹配，绝不自动开替代 tab）",
+    "createBrowserTab": "(browserId, url, options?: {visible?, sessionName?}) => Promise<Tab>（options 先于开 tab 应用；不支持的设置抛错）",
+    "getBrowser": "({url} | {id}) => Promise<Browser>（首次调用自动吐出该浏览器文档——文档即能力协商）",
+    "listTabs": "只列不占（user 与 controlled tabs）",
+    "tabTarget": "Tab 实现 Target 交互面（getAXState 用 DOM 快照、无数字索引的场景见 mcpapps）"
+  },
+  "computerEscapeHatch": {
+    "note": "cua.computer 的类型就是 typeof sky；mac 上暴露的 snake_case 原始方法",
+    "mac": ["click", "drag", "get_app_state", "list_apps", "paste", "perform_secondary_action", "press_key", "scroll", "select_text", "set_value", "type_text", "start_audio_recording?", "stop_audio_recording?"],
+    "linuxExtra": ["activate_window", "move", "move_relative", "key_down", "key_up", "clipboard_read", "clipboard_write", "clipboard_release", "drag_handle", "launch_app", "get_window_state", "list_windows", "get_screenshot"],
+    "macMissing": "mac 没有独立 launch/activate 原语——startApp 一次调用完成『拉起会话 + 抓 key window 状态』（隐式拉起）"
+  },
+  "observationContract": {
+    "axDiff": "AX 树自动 diff（只回增/删/改），带行数预算上限（AccessibilityDifferenceLineBudgetExceeded）；disableDiffing 取全量",
+    "skyshot": "『Skyshot』是原子观察单元：AX 文本 + 截图（+分类器）一次返回",
+    "staleIndexCountermeasure": "动作全部 Promise<void>；失败信息内嵌新鲜 AX diff 引导模型重新索引——每动作后必须 getAXState() 再决策（流程纪律，非运行时校验）",
+    "autoWait": "getAXState/getScreenshot 内置稳定等待，禁止模型手动 setTimeout"
+  },
+  "transport": {
+    "client": "@oai/sky（按平台分派：FullDesktop=linux / Window=mac / Window2=windows）",
+    "socket": "~/Library/Group Containers/2DC432GLL2.com.openai.sky.CUAService/IPC/computeruse.sock（env 可覆盖）",
+    "frame": "4 字节 UInt32LE 长度前缀 + JSON，单帧 ≤ 8MiB",
+    "jsonrpc": {
+      "ping": "{clientApiVersion} → serverApiVersion 严格校验（不匹配即 incompatibleClientVersion 硬失败）",
+      "request": "{clientApiVersion, codexTurnMetadata, deadlineUnixMilliseconds, requestType, request}——每请求携带会话/轮次元数据与截止时间"
+    },
+    "selfHeal": "服务未起时三级自愈：ensureService{service:'computer-use'} → launchServices.openApplication → 重连（250ms → 5s 窗口）",
+    "hostRequirement": "依赖 globalThis.nodeRepl.nativePipe.createConnection（受信任宿主运行时），普通 Node 进程跑不了"
+  },
+  "approvalTelemetry": {
+    "getAppPolicy": "{ decision: 'allowed'|'denied'|'forbidden', risk: 'high'|'low', allowPersistentApproval: boolean, warningSubtitle? }",
+    "approvalPersistence": ["ALWAYS", "ONCE", "SESSION", "TURN"],
+    "approvalResult": ["ACCEPTED", "CANCELED", "DECLINED", "ERROR"],
+    "ui": "审批 UI 走 MCP elicitation"
+  }
+}

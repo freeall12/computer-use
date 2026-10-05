@@ -1,0 +1,330 @@
+{
+  "_provenance": {
+    "status": "实测（app.asar 静态逆向）",
+    "evidence": [
+      "agents/minimax-code/browser-use.md §3.1（24 action 全表与输入要点）",
+      "agents/minimax-code/evidence/inventory.md C 节（builtin-browser-defs.ts LOCAL_BROWSER_ACTION_NAMES / LOCAL_BROWSER_ACTION_INPUT_CONTRACTS）"
+    ],
+    "original_path": "/Applications/MiniMax Code.app/Contents/Resources/app.asar → node_modules/@mavis/agent-tools/src/desktop/builtin-browser-defs.ts",
+    "confidence": "action 清单与输入契约=高（常量表直接可读）；各 input 字段的精确 schema 为分册摘要=中",
+    "notes": "统一 browser 工具为 compact 暴露形态；executionMode:'sequential'（状态机工具，禁止并行）；schema 形如 { action: <24 枚举>, input?: … }"
+  },
+  "tool_name": "browser",
+  "exposure": {
+    "compact": "桌面插件模式默认：单一 browser 工具 24 action",
+    "full": "13 个 browser_* 细粒度工具（见 browser-fine-grained.json）",
+    "both": "两套并存",
+    "desktop_plugin_fixed": "activationMode === 'desktop-plugin' 时固定 compact"
+  },
+  "actions": [
+    {
+      "name": "inspect",
+      "input": "可空",
+      "semantic": "返回 URL、标题、页面状态、snapshotId、可交互元素的不透明 ref 清单（含 actionable/pointerActionable/coordinateSpace、rect）；截断时返回 snapshotId+nextOffset 结构化续页"
+    },
+    {
+      "name": "query",
+      "input": {
+        "kind": {
+          "enum": [
+            "text",
+            "dom",
+            "editable",
+            "semantic",
+            "console",
+            "network"
+          ],
+          "required": true
+        }
+      },
+      "semantic": "text=可见文本（selector 可用）；dom=markup；editable=可编辑目标快照（可续页）；semantic=按可见标识文本解析 ref（limit ≤ 上限）；console=每 tab 200 条上限、48KiB 分页、URL 与凭据形状值脱敏；network=仅摘要（方法/脱敏 URL/资源类型/结果/状态/耗时，afterSequence 时间检查点，明示『时间先后≠因果』）"
+    },
+    {
+      "name": "navigate",
+      "input": {
+        "url": {
+          "required": true
+        }
+      },
+      "semantic": "按 provider 导航策略；Electron 上对已加载 tab 必须显式 replaceCurrentTab:true（省略即失败关闭，防误替换用户可见页面）"
+    },
+    {
+      "name": "open_tab",
+      "input": {
+        "url": {
+          "required": true
+        }
+      },
+      "semantic": "新开 tab（保留当前页）；headless 下被保留页可用 return_to_previous_tab 恢复"
+    },
+    {
+      "name": "return_to_previous_tab",
+      "input": "可空",
+      "semantic": "恢复 headless provider 保留的上一页"
+    },
+    {
+      "name": "back",
+      "input": "可空",
+      "semantic": "仅在当前 tab 历史内后退"
+    },
+    {
+      "name": "forward",
+      "input": "可空",
+      "semantic": "仅在当前 tab 历史内前进"
+    },
+    {
+      "name": "reload",
+      "input": "可空",
+      "semantic": "重载当前页"
+    },
+    {
+      "name": "click",
+      "input": {
+        "ref": {
+          "required": false,
+          "note": "与 position/normalized_position 三选一，混用验证失败"
+        },
+        "position": {
+          "required": false
+        },
+        "normalized_position": {
+          "required": false
+        },
+        "button": {
+          "enum": [
+            "left",
+            "right",
+            "middle"
+          ],
+          "required": false
+        },
+        "click_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "required": false
+        },
+        "delay": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000,
+          "required": false
+        }
+      },
+      "semantic": "CDP 合成点击；click_count:2+左键+ref 会升级为 AXOpen 语义的 double_click；effect.verified 恒 false 且 verificationRequired:true（UNEXPECTED_NAVIGATION 单独成码）"
+    },
+    {
+      "name": "click_and_wait_for_navigation",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "timeout": {
+          "maximum": 60,
+          "unit": "s",
+          "required": false
+        }
+      },
+      "semantic": "原子动作：先注册导航监听再点击（点击前注册 Page 导航监听，避免先点击后监听竞态）；返回 navigation 后置条件；不导航则 ACTION_TIMEOUT"
+    },
+    {
+      "name": "double_click",
+      "input": "同 click",
+      "semantic": "双击"
+    },
+    {
+      "name": "drag",
+      "input": {
+        "start": "ref 或坐标",
+        "end": "ref 或坐标"
+      },
+      "semantic": "拖拽"
+    },
+    {
+      "name": "hover",
+      "input": "ref 或坐标",
+      "semantic": "ref-hover 后可从 tooltip 语义恢复元素名（effect.semantic.name/confidence，high/medium 足以选中，low 仅诊断），用于图标按钮消歧"
+    },
+    {
+      "name": "fill",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "text": {
+          "required": true
+        }
+      },
+      "semantic": "总是先清空（拒绝 clear 字段）"
+    },
+    {
+      "name": "type",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "text": {
+          "required": true
+        },
+        "clear": {
+          "required": false
+        },
+        "delay": {
+          "required": false
+        }
+      },
+      "semantic": "逐键输入；文本输入超时按『delay×字符数 + CDP 事件数×20ms + 30s 完成缓冲』预算，超预算报 INPUT_DURATION_EXCEEDS_DEADLINE"
+    },
+    {
+      "name": "paste",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "text": "纯文本"
+      },
+      "semantic": "不读宿主 OS 剪贴板；headless 用会话内隔离剪贴板"
+    },
+    {
+      "name": "press_key",
+      "input": {
+        "key": {
+          "required": true
+        },
+        "modifiers": {
+          "required": false
+        }
+      },
+      "semantic": "按键"
+    },
+    {
+      "name": "check",
+      "input": {
+        "ref": {
+          "required": true
+        }
+      },
+      "semantic": "勾选；仅 ref，不接受坐标"
+    },
+    {
+      "name": "uncheck",
+      "input": {
+        "ref": {
+          "required": true
+        }
+      },
+      "semantic": "取消勾选；仅 ref"
+    },
+    {
+      "name": "select_option",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "values": {
+          "required": false
+        }
+      },
+      "semantic": "下拉选择；仅 ref"
+    },
+    {
+      "name": "scroll",
+      "input": {
+        "direction": {
+          "required": false
+        },
+        "distance": {
+          "required": false
+        },
+        "ref": {
+          "required": false
+        }
+      },
+      "semantic": "返回结构化 effect：moved/actualDelta/atStart/atEnd/NO_SCROLL_EFFECT/SCROLL_EFFECT_UNVERIFIED（跨域 frame 不可验证时 fail-closed）"
+    },
+    {
+      "name": "wait",
+      "input": {
+        "url": {},
+        "selector": {},
+        "text": {},
+        "state": {
+          "enum": [
+            "attached",
+            "detached",
+            "visible",
+            "hidden"
+          ]
+        },
+        "timeout": {}
+      },
+      "semantic": "条件等待（字段按条件互斥）"
+    },
+    {
+      "name": "screenshot",
+      "input": {
+        "scope": {
+          "enum": [
+            "viewport",
+            "fullPage",
+            "clip"
+          ]
+        },
+        "clip": "x/y/width/height"
+      },
+      "semantic": "截图；压缩后进模型 content（image 块）；默认仅模型可见，用户明示要求时才允许 userDelivery.mediaMarkup 一次"
+    },
+    {
+      "name": "upload_files",
+      "input": {
+        "ref": {
+          "required": true
+        },
+        "paths": {
+          "type": "array",
+          "min_items": 1,
+          "max_items": 20,
+          "required": true
+        }
+      },
+      "semantic": "唯一文件校验点：同一动作内校验授权、存在性、类型、数量、大小；路径仅限『当前轮用户附件精确路径』或『活动工作区内文件』（含 symlink 目标解析，workspace-assets.adapter 强制）；skill 明文禁止 shell/read/stat 预检"
+    }
+  ],
+  "observation_pipeline": [
+    "可交互元素快照：CDP DOM.getDocument + Accessibility.getFullAXTree；不透明 ref（快照作用域，导航/重载即失效）",
+    "hover 语义恢复（tooltip 语义名 + 置信度）",
+    "控制台/网络诊断：200 条/48KiB 上限、[REDACTED] 凭据脱敏、不含请求头/体/cookie",
+    "动作后自动视觉观察：导航/点击/有效滚动/拖放/上传可能自动附 1 张压缩图（每轮上限 2-4 张）",
+    "VERIFIED_FILL：写入后 4 次采样、间隔 50ms 确认值稳定，产出结构化 effect.verified"
+  ],
+  "error_codes": [
+    {
+      "code": "SKILL_REQUIRED",
+      "when": "工具被调但 control-in-app-browser skill 未加载（skill 前置门；skill 加载必须独占一个 assistant step）"
+    },
+    {
+      "code": "REQUIRED_NEXT_TOOL_ASK_USER",
+      "when": "受信任 browser 结果带 safety.requiredNextTool:'ask_user' 时，运行时拦截后续一切其它工具调用直至真正调用 ask_user"
+    },
+    {
+      "code": "INPUT_DURATION_EXCEEDS_DEADLINE",
+      "when": "type 动作文本输入超时预算超限"
+    },
+    {
+      "code": "ACTION_TIMEOUT",
+      "when": "click_and_wait_for_navigation 未在 timeout 内观察到导航"
+    },
+    {
+      "code": "UNEXPECTED_NAVIGATION",
+      "when": "click 后发生非预期导航（单独成码）"
+    },
+    {
+      "code": "NO_SCROLL_EFFECT / SCROLL_EFFECT_UNVERIFIED",
+      "when": "滚动无效果 / 跨域 frame 不可验证（fail-closed）"
+    },
+    {
+      "code": "BROWSER_PLUGIN_MANAGED",
+      "when": "拒绝走旧版 request_feature_enable(featureKey='browser-use') 开关（插件接管后旧开关失效）"
+    }
+  ]
+}

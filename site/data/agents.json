@@ -1,0 +1,251 @@
+[
+  {
+    "slug": "zcode",
+    "name": "ZCode",
+    "vendor": "智谱",
+    "color": "#4C6FFF",
+    "monogram": "ZC",
+    "cu": "14 工具 · ax_native Helper（AX+CGEvent）",
+    "bu": "内嵌 WebView · 单一 js 工具动态面",
+    "chips": [
+      { "label": "CU 工具", "value": "14" },
+      { "label": "机制", "value": "AX+CGEvent" },
+      { "label": "对齐", "value": "逐字对齐 Codex" },
+      { "label": "防重放", "value": "自研" }
+    ],
+    "takeaway": "安全加固最重的自研派",
+    "toolcall": "get_app_state({name:\"Notes\"})",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/zcode"
+    }
+  },
+  {
+    "slug": "codex",
+    "name": "Codex",
+    "vendor": "OpenAI",
+    "color": "#10A37F",
+    "monogram": "CX",
+    "cu": "@oai/cua + Swift Sky 服务 · js REPL 三工具",
+    "bu": "iab · 扩展 · 云 · mcpapps 四后端",
+    "chips": [
+      { "label": "服务", "value": "JSON-RPC" },
+      { "label": "原子性", "value": "Skyshot 原子" },
+      { "label": "守护", "value": "锁屏守护" },
+      { "label": "后端", "value": "4 种" }
+    ],
+    "takeaway": "一个 REPL 全包的极简派",
+    "toolcall": "cua.getApp(\"Notes\")",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/codex"
+    }
+  },
+  {
+    "slug": "claude-code",
+    "name": "Claude Code",
+    "vendor": "Anthropic",
+    "color": "#D97757",
+    "monogram": "CC",
+    "cu": "~40 工具 · 三控制域 · Swift+Rust 双层",
+    "bu": "Chrome 扩展 + native messaging",
+    "chips": [
+      { "label": "CU 工具", "value": "~40" },
+      { "label": "权限", "value": "tier 权限" },
+      { "label": "教学", "value": "teach mode" },
+      { "label": "并发", "value": "独占锁" }
+    ],
+    "takeaway": "工具面拆得最细",
+    "toolcall": "mcp__computer-use__screenshot",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/claude-code"
+    }
+  },
+  {
+    "slug": "cursor",
+    "name": "Cursor",
+    "vendor": "Anysphere",
+    "color": "#FFBD5A",
+    "monogram": "CU",
+    "cu": "MCP provider · 16 工具 · Swift sidecar",
+    "bu": "内嵌 webview 合成 DOM 事件",
+    "chips": [
+      { "label": "CU 工具", "value": "16" },
+      { "label": "引用", "value": "data-cursor-ref" },
+      { "label": "CDP", "value": "拒绝列表" },
+      { "label": "门控", "value": "门控未开" }
+    ],
+    "takeaway": "白牌代工的源头（Grok Bot 即其变体）",
+    "toolcall": "browser_snapshot()",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/cursor"
+    }
+  },
+  {
+    "slug": "minimax-code",
+    "name": "MiniMax Code",
+    "vendor": "MiniMax",
+    "color": "#FF6A00",
+    "monogram": "MM",
+    "cu": "trycua cua-driver 0.22.1 · 17 工具",
+    "bu": "WebContentsView + CDP · 24 action",
+    "chips": [
+      { "label": "CU 工具", "value": "17" },
+      { "label": "底座", "value": "开源 cua-driver" },
+      { "label": "并发", "value": "generation fencing" },
+      { "label": "JS", "value": "无任意 JS" }
+    ],
+    "takeaway": "开源驱动+协议兼容的务实派",
+    "toolcall": "computer_click(element_token)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/minimax-code"
+    }
+  },
+  {
+    "slug": "synara",
+    "name": "Synara",
+    "vendor": "独立开发者",
+    "color": "#8B5CF6",
+    "monogram": "SY",
+    "cu": "cua-driver 0.28.2 patched · 33 工具",
+    "bu": "面板 CDP + cua CDP + cookie 导入",
+    "chips": [
+      { "label": "CU 工具", "value": "33" },
+      { "label": "授权", "value": "前台意图授权" },
+      { "label": "急停", "value": "Escape 急停" },
+      { "label": "安全", "value": "最重安全" }
+    ],
+    "takeaway": "安全工程最“社会工程”",
+    "toolcall": "computer:control 授权",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/synara"
+    }
+  },
+  {
+    "slug": "kimi-code",
+    "name": "Kimi Code",
+    "vendor": "月之暗面",
+    "color": "#21C4B5",
+    "monogram": "KC",
+    "cu": "KimiCU.app 常驻 · SkyLight+SLS 签名事件",
+    "bu": "webbridge 扩展 + 内嵌 43 操作",
+    "chips": [
+      { "label": "操作面", "value": "内嵌 43 操作" },
+      { "label": "焦点", "value": "never-front 后台" },
+      { "label": "校验", "value": "verify_after 三态" }
+    ],
+    "takeaway": "后台不抢焦点的代表",
+    "toolcall": "verify_after → verified",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/kimi-code"
+    }
+  },
+  {
+    "slug": "qoder",
+    "name": "Qoder",
+    "vendor": "阿里巴巴",
+    "color": "#6C5CE7",
+    "monogram": "QO",
+    "cu": "自研 Swift Runtime · UDS+token 注册表",
+    "bu": "16 工具钉死 chrome-devtools-mcp 基线",
+    "chips": [
+      { "label": "内核", "value": "qwen-code 内核" },
+      { "label": "BU 工具", "value": "16" },
+      { "label": "审批", "value": "per-app 审批" },
+      { "label": "录制", "value": "Record&Replay" }
+    ],
+    "takeaway": "内核确证迁自 qwen-code",
+    "toolcall": "open -g 懒拉起 + 握手",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/qoder"
+    }
+  },
+  {
+    "slug": "grok",
+    "name": "Grok Bot",
+    "vendor": "xAI",
+    "color": "#B0B6BD",
+    "monogram": "GB",
+    "cu": "16 工具 catalog 内嵌 · Swift Helper",
+    "bu": "云端 browser_subagent + cookie 审批导入",
+    "chips": [
+      { "label": "CU 工具", "value": "16" },
+      { "label": "代工", "value": "Cursor 代工" },
+      { "label": "协议", "value": "错误即指令" }
+    ],
+    "takeaway": "白牌供应链实锤（TeamID 同 Cursor）",
+    "toolcall": "computer_use_click(ref)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/grok"
+    }
+  },
+  {
+    "slug": "devin",
+    "name": "Devin",
+    "vendor": "Cognition",
+    "color": "#E75480",
+    "monogram": "DV",
+    "cu": "云 VM computer · 1024×768 循环",
+    "bu": "云 Interactive Browser · CDP :29229",
+    "chips": [
+      { "label": "执行", "value": "全云端" },
+      { "label": "本地", "value": "零 GUI" },
+      { "label": "分辨率", "value": "1024×768" },
+      { "label": "接入", "value": "ACP 投影" }
+    ],
+    "takeaway": "云端执行的基线样本",
+    "toolcall": "cloud VM · browser_preview",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/devin"
+    }
+  },
+  {
+    "slug": "goose",
+    "name": "Goose",
+    "vendor": "Block",
+    "color": "#FFDE59",
+    "monogram": "GO",
+    "cu": "computer_control 纯透传 Peekaboo CLI",
+    "bu": "零内置 · 五个 MCP 外挂",
+    "chips": [
+      { "label": "执行", "value": "外包 Peekaboo" },
+      { "label": "BU 内置", "value": "零" },
+      { "label": "协议", "value": "Apache-2.0" },
+      { "label": "标注", "value": "AX 叠加标注" }
+    ],
+    "takeaway": "执行层完全外包的唯一样本",
+    "toolcall": "computer_control(\"see --annotate\")",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/goose"
+    }
+  },
+  {
+    "slug": "mimo",
+    "name": "MiMo",
+    "vendor": "小米",
+    "color": "#FF4900",
+    "monogram": "MI",
+    "cu": "自研 sky-mac · js REPL 门面 · 锁屏操作",
+    "bu": "MV3 扩展 + chrome.debugger CDP",
+    "chips": [
+      { "label": "复刻", "value": "Codex 清洁室" },
+      { "label": "锁屏", "value": "支持操作" },
+      { "label": "安全", "value": "SecurityAgentPlugins" }
+    ],
+    "takeaway": "对标 Codex 最明示的复刻",
+    "toolcall": "js: @mimo/sky.click()",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/mimo"
+    }
+  }
+]

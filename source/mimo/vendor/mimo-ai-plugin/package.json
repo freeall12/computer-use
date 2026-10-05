@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@mimo-ai/plugin",
+  "version": "0.1.14",
+  "description": "Plugin SDK for extending MiMoCode",
+  "keywords": [
+    "mimo",
+    "mimocode",
+    "ai",
+    "plugin",
+    "coding-assistant"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "Xiaomi MiMo Team",
+  "homepage": "https://mimo.xiaomi.com/coder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XiaomiMiMo/MiMo-Code.git",
+    "directory": "packages/plugin"
+  },
+  "bugs": {
+    "url": "https://github.com/XiaomiMiMo/MiMo-Code/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "build": "tsc"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tool": {
+      "import": "./dist/tool.js",
+      "types": "./dist/tool.d.ts"
+    },
+    "./tui": {
+      "import": "./dist/tui.js",
+      "types": "./dist/tui.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mimo-ai/sdk": "0.1.14",
+    "effect": "4.0.0-beta.48",
+    "zod": "4.1.8"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.1.101",
+    "@opentui/solid": ">=0.1.101"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@opentui/core": "0.1.101",
+    "@opentui/solid": "0.1.101",
+    "@tsconfig/node22": "22.0.2",
+    "@types/node": "22.13.9",
+    "typescript": "5.8.2",
+    "@typescript/native-preview": "7.0.0-dev.20251207.1"
+  }
+}

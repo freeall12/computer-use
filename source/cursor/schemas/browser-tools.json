@@ -1,0 +1,56 @@
+{
+  "_provenance": {
+    "status": "实测",
+    "evidence": [
+      "agents/cursor/browser-use.md §3（工具面完整清单）、§4（快照 + ref 机制）、§5（注入 JS 合成事件）、§7（安全模型）",
+      "agents/cursor/evidence/inventory.md §3.2（工具名与描述原文提取）、§3.3（ref 赋值/findElementByRef/assertDescriptionMatches）、§3.5（CDP 拒绝列表）"
+    ],
+    "note": "手写整理 Cursor 内置扩展 cursor-browser-automation（provider id cursor-ide-browser）的 BU 工具面：15 个注册工具 + callTool 分发里的 browser_lock = 16。工具名与参数逐字来自 dist/extension.js 的 parameters: JSON.stringify(...) 字面量提取（evidence §3.2）。"
+  },
+  "provider": { "id": "cursor-ide-browser", "extension": "cursor.cursor-browser-automation", "registration": "vscode.cursor.registerMcpProvider" },
+  "commonParameters": { "viewId": "所有工具共有", "take_screenshot_afterwards": "所有工具共有" },
+  "tools": [
+    { "name": "browser_navigate", "group": "导航", "description": "Navigate to a URL. By default reuses an existing tab; set newTab: true to open in a new tab.", "parameters": { "url": "string*", "newTab?": "bool", "position?": "active|side（仅用户明确要求展示浏览器时设置；后台自动化应省略以免抢焦点）" } },
+    { "name": "browser_tabs", "group": "导航", "description": "标签 CRUD；headless 标签由内部命令 newHeadlessTab 支撑", "parameters": { "action": "list|new|close|select", "index?": "int", "position?": "active|side" } },
+    { "name": "browser_lock", "group": "导航", "description": "Lock or unlock the browser to control whether the user can interact while you work... the user can still click 'Take Control' to unlock if needed.", "parameters": { "action": "lock|unlock" }, "discipline": "必须先 navigate 后 lock，结束必须 unlock；用户始终可 Take Control 夺回" },
+    { "name": "browser_snapshot", "group": "观察", "description": "Capture accessibility snapshot of the current page, this is better than screenshot（the main source of truth for page structure）", "parameters": { "interactive?": "bool（仅可交互元素）", "maxDepth?": "int（默认 20）", "compact?": "bool", "selector?": "string（限定子树）", "includeDiff?": "bool（与上次快照 diff）" } },
+    { "name": "browser_take_screenshot", "group": "观察", "description": "视觉验证；提示词明确『不能基于截图定位动作，动作一律用 snapshot 的 ref』", "parameters": { "type?": "png|jpeg", "filename?": "string", "element?+ref?": "元素截图", "fullPage?": "bool" } },
+    { "name": "browser_highlight", "group": "观察", "description": "页面内高亮目标元素（视觉 grounding）", "parameters": { "element?": "描述", "ref?": "string" } },
+    { "name": "browser_get_bounding_box", "group": "观察", "description": "元素包围盒（坐标诊断）", "parameters": { "element?": "描述", "ref?": "string" } },
+    { "name": "browser_click", "group": "交互", "description": "Click an element by ref from browser_snapshot. Use this instead of CDP Input.* methods.", "parameters": { "ref": "string*", "element?": "人类可读描述（防错位校验 assertDescriptionMatches）", "offsetX?/offsetY?": "number", "doubleClick?": "bool", "button?": "left|right|middle", "modifiers?": ["Control", "Shift", "Alt", "Meta", "ControlOrMeta"], "holdDurationMs?": "int" } },
+    { "name": "browser_mouse_click_xy", "group": "交互", "description": "视口坐标点击（兜底，Prefer browser_click with refs）", "parameters": { "x": "number*", "y": "number*", "button?": "enum" } },
+    { "name": "browser_type", "group": "交互", "description": "聚焦后输入", "parameters": { "ref": "string*", "text": "string" } },
+    { "name": "browser_fill", "group": "交互", "description": "填充字段", "parameters": { "ref": "string*", "value": "string" } },
+    { "name": "browser_select_option", "group": "交互", "parameters": { "ref": "string*", "values": ["string"] } },
+    { "name": "browser_press_key", "group": "交互", "parameters": { "key": "string" } },
+    { "name": "browser_scroll", "group": "交互", "description": "滚动（可滚动某元素进入视图）", "parameters": { "direction?": "up|down|left|right", "amount?": "int", "ref?": "string" } },
+    { "name": "browser_drag", "group": "交互", "description": "HTML5 拖拽（合成完整 DragEvent 链）", "parameters": { "startElement?/sourceRef?": "起点", "endElement?/targetRef?": "终点（或坐标）" } },
+    { "name": "browser_cdp", "group": "逃生舱", "description": "Send a Chrome DevTools Protocol command... Browser-wide, storage, cookie, permission, download, target-management, and system-level commands are denied.", "parameters": { "method": "string*", "params?": "object" }, "suggestedUses": "Runtime.evaluate / DOM.getDocument / CSS.getComputedStyleForNode / Profiler.start,stop / Performance.getMetrics / Log.enable / Network.enable；大响应落盘为文件而非内联" }
+  ],
+  "refMechanism": {
+    "allocation": "快照脚本遍历 composed DOM（querySelectorAllIncludingOpenShadowRoots，显式覆盖开放 shadow root），筛可交互元素（button/link/input/select/textarea/[role]/contenteditable）；已有合法 data-cursor-ref 则复用，否则分配 e<N> 并 setAttribute；本次未引用到的旧 ref 会被清除",
+    "yamlShape": "- role: button / name: 新建项目 / ref: e2 / value: … / placeholder: … / nth: 1（同 role+name 的第 N 个）/ states: [current]",
+    "driftProtection": "动作时可传 element（人类可读描述），执行前 assertDescriptionMatches 比对当前元素 tag/role/aria-label/text 与描述是否一致，不一致报错提示重新 snapshot",
+    "boundaries": ["Iframe 内容不可访问（只有 iframe 外元素可交互）", "ref 是不透明句柄，绑定到该标签最近一次 browser_snapshot", "设备仿真只在当前 agent turn 内有效（turn 结束自动清除）"],
+    "watchdog": "browserSnapshotWatchdogService：15s watchdog / 3s 恢复检查 / 5min 冷却（durable snapshot 自愈）"
+  },
+  "syntheticEvents": {
+    "principle": "所有交互动作由注入 JS 在页面主世界合成 DOM 事件（Pointer/Mouse/Keyboard/DragEvent + DataTransfer），不用 CDP Input",
+    "rationale": "CDP Input.* methods are focus-sensitive in Electron webviews（真实输入事件可能被路由到 Cursor UI 而非页面）",
+    "click": "定位 → scrollIntoView（需要时）→ 修饰键处理 → 合成 PointerEvent/MouseEvent 序列；带 dropdown 智能关闭逻辑",
+    "type/fill": "blur 旧焦点 → element.focus() → 失败则 element.click() 再 focus → 设值（含 contenteditable / execCommand('selectAll') 分支）",
+    "drag": "new DataTransfer() → pointerover/pointerenter/mousedown/pointerdown → dragstart（被 preventDefault 则报错建议改用 browser_evaluate）→ drag → 对 drop 目标派发 dragenter/dragover/drop",
+    "limitation": "合成事件 isTrusted=false（对检测合成事件的站点无效；推断的局限）"
+  },
+  "cdpDenylist": {
+    "domains": ["Browser", "Input", "Storage", "SystemInfo", "Target", "Tethering"],
+    "methods": ["DOM.setFileInputFiles", "Network.clearBrowserCache", "Network.clearBrowserCookies", "Network.deleteCookies", "Network.getAllCookies", "Network.getCookies", "Network.setCookie", "Network.setCookies", "Page.getNavigationHistory", "Page.navigate", "Page.navigateToHistoryEntry"],
+    "inputSpecial": "CDP Input.* methods are focus-sensitive in Electron webviews. Use dedicated browser tools...",
+    "attachment": "webContents.debugger.attach('1.3')"
+  },
+  "navigationPolicy": {
+    "fileUrls": "file:// URLs are not allowed. The browser navigation tool can only access web URLs (http:// or https://)",
+    "adminAllowlist": "命中失败抛 Navigation to <url> is blocked by administrator settings（cursor.browserOriginAllowlist.ensurePageOriginAllowed / ensureNavigationAllowed 前置校验）"
+  },
+  "errorContract": "结构化 {success, error, suggestion} + 防兔子洞提示词（同一失败动作不重复超过一次除非有新证据；4 次失败或停滞即停，报告当前页面/目标/阻塞/建议下一步；登录、passkey、验证码、破坏性确认必须交还用户）"
+}

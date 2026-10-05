@@ -1,0 +1,157 @@
+{
+  "_provenance": {
+    "status": "实测（官方 SKILL.md 直读 + daemon 二进制 strings + 日志实录）",
+    "evidence": [
+      "agents/kimi-code/browser-use.md §2（webbridge 完整解剖：命令协议、工具面全量、会话/安全模型）",
+      "agents/kimi-code/evidence/inventory.md §8/§8.1（官方 SKILL.md v2.0.22 从 CDN tarball 解包；工具表全量）"
+    ],
+    "original_path": "https://cdn.kimi.com/webbridge/v2.0.22/skills/kimi-webbridge.tar.gz（SKILL.md + references/*.md）+ ~/.kimi-webbridge/bin/kimi-webbridge（Go daemon v2.0.22）",
+    "confidence": "命令清单与信封形状=高（SKILL 工具表直读）；read_page/wait 不在工具表仅正文提及=中（比表新的扩展行为，推断 v2.0.x 后期加入）；/prompt、/trajectory、/internal/sidepanel-control 端点语义=低",
+    "notes": "扩展在商店分发（闭源），观察/动作语义以 SKILL.md + daemon strings 交叉印证"
+  },
+  "transport": {
+    "daemon": "Go 守护进程 kimi-webbridge v2.0.22，源码包 dev.msh.team/harness/agent-extension",
+    "http": "http://127.0.0.1:10086（POST /command；绑非回环有明文警告 any client on the network can drive your browser；Origin 校验）",
+    "ws": "ws://127.0.0.1:10086/ws（MV3 扩展反连；换端口需用户在扩展设置改一次）",
+    "envelope": {
+      "request": "{action, args, session}",
+      "success": "{ok:true, data:…}",
+      "failure": "{ok:false, error:{code, message}}"
+    },
+    "session_semantic": "一个任务=一个会话=一个 Chrome tab group（group_title 为人类可读组名）；find_tab active:true 借用用户正看的 tab（borrowed:true，原位操作不并入组）"
+  },
+  "commands": [
+    {
+      "name": "navigate",
+      "args": {
+        "url": "required",
+        "newTab": "bool?",
+        "group_title": "string?"
+      },
+      "returns": "{success,url,tabId}",
+      "semantic": "首次调用开 tab"
+    },
+    {
+      "name": "find_tab",
+      "args": {
+        "url": "string?",
+        "active": "bool?"
+      },
+      "semantic": "复选本会话开的 tab；active:true 借用用户 tab；按 host 匹配（kimi.com 匹配 www.kimi.com，忽略 path）"
+    },
+    {
+      "name": "snapshot",
+      "args": {},
+      "returns": "{url,title,tree}",
+      "semantic": "无障碍树文本 + @e refs —— 读页面/定位元素的首选；附 frames 列表（iframe 只见 top document）"
+    },
+    {
+      "name": "click",
+      "args": {
+        "selector": "@e ref 或 CSS"
+      },
+      "returns": "{success,tag,text}",
+      "semantic": "合成 el.click()（isTrusted=false；严格校验站点忽略合成事件）"
+    },
+    {
+      "name": "fill",
+      "args": {
+        "selector": "required",
+        "value": "required"
+      },
+      "returns": "{mode: value|contenteditable}",
+      "semantic": "input/textarea 和 contenteditable 富文本（ProseMirror/TipTap/Lexical/Slate/Quill）；clear-and-insert"
+    },
+    {
+      "name": "evaluate",
+      "args": {
+        "code": "required"
+      },
+      "returns": "{type,value}",
+      "semantic": "页面 JS realm 求值；跨调用共享 realm（建议 IIFE）；禁止 JSON.stringify(…,null,2) 防截断"
+    },
+    {
+      "name": "cdp",
+      "args": {
+        "method": "required",
+        "params": "object"
+      },
+      "semantic": "raw chrome.debugger 直通；Target.activateTarget 被拒；Page.bringToFront 受 focus emulation 规则限制（先 Emulation.setFocusEmulationEnabled {enabled:true} 让后台 tab 收真输入，结束后关闭）"
+    },
+    {
+      "name": "screenshot",
+      "args": {
+        "format": "png|jpeg",
+        "quality": "int?",
+        "selector": "string?",
+        "path": "string?"
+      },
+      "returns": "{path,sizeBytes,…}",
+      "semantic": "写盘返回 path 不回 base64；支持元素级截图"
+    },
+    {
+      "name": "network",
+      "args": {
+        "cmd": "start|stop|list|detail",
+        "filter": "string?",
+        "requestId": "string?"
+      },
+      "semantic": "每 tab 抓包；detail 给 requestHeaders/requestBody/响应 body（stop 后释放 body → bodyError）"
+    },
+    {
+      "name": "upload",
+      "args": {
+        "selector": "required",
+        "files": "array"
+      },
+      "semantic": "文件上传（chrome.debugger DOM.setFileInputFiles 类机制，推断）"
+    },
+    {
+      "name": "save_as_pdf",
+      "args": {
+        "paper_format": "letter|a4|legal|a3|tabloid",
+        "landscape": "bool?",
+        "scale": "0.1-2",
+        "print_background": "bool?",
+        "path": "string?"
+      },
+      "semantic": "Page.printToPDF；解码后 >100MB 拒绝"
+    },
+    {
+      "name": "list_tabs",
+      "args": {},
+      "semantic": "会话内 tab 清单"
+    },
+    {
+      "name": "close_tab",
+      "args": {},
+      "semantic": "关当前 tab"
+    },
+    {
+      "name": "close_session",
+      "args": {},
+      "semantic": "关整组（仅用户要求时）"
+    },
+    {
+      "name": "read_page",
+      "args": {
+        "frame": "#f1 等 iframe 句柄"
+      },
+      "confidence": "中——仅 SKILL 正文提及、不在工具表",
+      "semantic": "iframe 读取（snapshot 树列出 frames 后按句柄读）"
+    },
+    {
+      "name": "wait",
+      "args": {
+        "frame": "any"
+      },
+      "confidence": "中——同上",
+      "semantic": "等大预览帧可读"
+    }
+  ],
+  "ops_boundary": [
+    "agent 只可自行 start（幂等）；stop/restart/upgrade/uninstall 永远转告用户",
+    "版本对齐：daemon/扩展/skill 三方互检（/status 的 version_mismatch/skill_mismatch/update_available 各带修复命令）；二进制升级强制 sha256 manifest（refusing to install unverified content）",
+    "隐私自述：Everything runs locally; login state and page content never leave the device（另有 DataRangers 匿名遥测并存）"
+  ]
+}

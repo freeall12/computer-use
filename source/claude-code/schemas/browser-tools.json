@@ -1,0 +1,51 @@
+{
+  "_provenance": {
+    "status": "实测",
+    "evidence": [
+      "agents/claude-code/browser-use.md §2（完整工具面）、§4（权限模型）、§5（桌面端专属变体）",
+      "agents/claude-code/evidence/inventory.md §3.4（浏览器版 computer 的 action 枚举）、§3.7（chrome-native-host 协议）、§3.12（会话权限状态）"
+    ],
+    "note": "手写整理 Claude in Chrome 体系（mcp__claude-in-chrome__*）浏览器工具面：computer 的 action 枚举逐字来自 asar index.chunk-Bam8dXW9.js 偏移 2901876 的 enum 字面量（required: [action, tabId]）。链路：Chrome 扩展（ID fcoeoabgfenejglbffodgkkbkcdhcgfn）→ native messaging → chrome-native-host → unix socket /tmp/claude-mcp-browser-bridge-<pid> → MCP 客户端。"
+  },
+  "namespace": "mcp__claude-in-chrome__*",
+  "server": { "cli": "claude --claude-in-chrome-mcp（stdio）", "desktop": "@ant/claude-for-chrome-mcp（进程内）" },
+  "tools": [
+    { "name": "tabs_context_mcp", "group": "标签", "description": "会话入口：返回本会话 MCP 标签组内全部 tab；组不存在且 createIfEmpty 时新开窗口+新组+空 tab。纪律：先 context 再干活；每会话用新 tab、用完 tabs_close 清理", "parameters": { "createIfEmpty?": "bool" } },
+    { "name": "tabs_create_mcp", "group": "标签", "description": "在组内新开空 tab", "parameters": { "url?": "string" } },
+    { "name": "tabs_select_mcp", "group": "标签", "parameters": { "tabId": "string" } },
+    { "name": "tabs_close_mcp", "group": "标签", "description": "只能关本会话组内的 tab；关掉最后一个 tab 组自动消散", "parameters": { "tabId": "string" } },
+    { "name": "navigate", "group": "标签", "description": "单独调用可省 tabId（自动 context+createIfEmpty 并把 tab 列表附加到结果）；browser_batch 内必须显式 tabId", "parameters": { "url": "string（'back'/'forward' 或任意 URL，缺省补 https://）", "tabId?": "string" } },
+    { "name": "resize_window", "group": "标签", "parameters": { "width": "int", "height": "int", "tabId?": "string" } },
+    { "name": "read_page", "group": "观察", "description": "可访问性树表示；超限在行边界截断并注明全文尺寸", "parameters": { "tabId": "string", "filter?": "interactive|all（默认 interactive）", "depth?": "int（默认 15）", "ref_id?": "string（聚焦子树）", "max_chars?": "int（默认 50000）" } },
+    { "name": "find", "group": "观察", "description": "按语义找元素，返回 ref_N 引用（供 computer/form_input/scroll_to 使用）", "parameters": { "tabId": "string", "query": "string" } },
+    { "name": "get_page_text", "group": "观察", "description": "正文纯文本抽取（prioritizing article content，readability 式），无 HTML", "parameters": { "tabId": "string" } },
+    { "name": "read_console_messages", "group": "观察", "description": "控制台消息；描述强烈建议必须带 pattern 过滤", "parameters": { "tabId": "string", "onlyErrors?": "bool", "clear?": "bool", "pattern?": "string", "limit?": "int（默认 100）" } },
+    { "name": "read_network_requests", "group": "观察", "description": "XHR/Fetch/文档/图片请求；跨域可见；换域自动清空", "parameters": { "tabId": "string", "urlPattern?": "string", "clear?": "bool", "limit?": "int" } },
+    { "name": "computer", "group": "动作", "description": "浏览器版像素级动作：坐标基于本 tab 视口截图；点击可 ref 代替坐标；key 禁止页面缩放组合键（提示改用 zoom）", "parameters": { "action": "enum: left_click|right_click|type|screenshot|wait|scroll|key|left_click_drag|double_click|triple_click|zoom|scroll_to|hover", "coordinate?": "[x,y]", "text?": "string", "ref?": "ref_N", "modifiers?": "string", "repeat?": "1-100", "duration?": "number", "scroll_direction?": "up|down|left|right", "scroll_amount?": "int", "start_coordinate?": "[x,y]", "region?": "[x0,y0,x1,y1]", "scale?": "[0.1,1]", "tabId": "string（必填）" }, "note": "旧版扩展不识别 scale 时回退全尺寸——扩展与宿主存在版本协商" },
+    { "name": "form_input", "group": "动作", "description": "按 ref 设表单值：checkbox 用布尔、select 用 option 值或文本、其余字符串/数字", "parameters": { "ref": "ref_N", "value": "bool|string|number", "tabId": "string" } },
+    { "name": "javascript_tool", "group": "动作", "description": "页面上下文 REPL 求值（注册名 javascript_exec）：顶层 await 可用、末表达式自动返回、JSON 序列化", "parameters": { "action": "'javascript_exec'", "text": "JS 代码", "tabId": "string" } },
+    { "name": "file_upload", "group": "动作", "description": "由客户端读文件：Populated by the client from paths after it reads them under its own file-read permissions; do not set this yourself", "parameters": { "paths": ["宿主绝对路径"], "name?": "string", "mimeType?": "string", "contents?": "base64", "tabId": "string" } },
+    { "name": "upload_image", "group": "动作", "description": "把截图/用户图片传给 <input type=file>（含隐藏 input）或拖放到可见区域", "parameters": { "imageId?": "此前截图 id", "coordinate?": "[x,y]（拖放目标）", "tabId": "string" } },
+    { "name": "gif_creator", "group": "动作", "description": "录制操作过程导出带标注 GIF（点击橙圈/拖拽红箭头/动作标签/进度条/水印）", "parameters": { "action": "start_recording|stop_recording|export|clear", "options?": "{showClickIndicators,showDragPaths,showActionLabels,showProgressBar,showWatermark,quality 1-30}", "download?": "bool" } },
+    { "name": "browser_batch", "group": "动作", "description": "一次往返顺序执行多个上述工具，首错即停；每项独立过权限检查（无权限域的下一项失败停批）；不能嵌套；批内坐标参照批前截图", "parameters": { "actions": [{ "name": "string", "input": "object" }] } },
+    { "name": "list_connected_browsers", "group": "连接", "description": "列当前账号连接的所有 Chrome 实例（deviceId、名称、平台、是否本机）" },
+    { "name": "select_browser", "group": "连接", "description": "按 deviceId 直连（配对广播不弹）", "parameters": { "deviceId": "string" } },
+    { "name": "switch_browser", "group": "连接", "description": "向所有装了扩展的 Chrome 广播配对请求，等用户手动点 Connect（最长 2 分钟）" },
+    { "name": "shortcuts_list", "group": "Shortcuts", "description": "枚举扩展侧快捷指令（workflow），在 sidepanel 里对当前 tab 运行、立即返回" },
+    { "name": "shortcuts_execute", "group": "Shortcuts", "parameters": { "shortcut": "string（如 /debug、/summarize）" } }
+  ],
+  "permissionModel": {
+    "sessionModes": { "ask": 0, "follow_a_plan": 1, "skip_all_permission_checks": 2 },
+    "modeNote": "skip_all 仅在 bypass 权限模式下由 CLI 注入 CLAUDE_CHROME_PERMISSION_MODE 环境变量",
+    "perAction": "扩展对每次敏感动作发 permission_request（载荷含 tool_type/url/action_data/category）；action_data 内 _perActionOnly（仅本次）、_privateHostReadAlwaysOffer/_privateHostReadAlways（私有地址站点总是可读）；拒绝消息 {msg:'refuse', code}",
+    "domainAllowlist": "allowedDomains（宿主侧）→ MCP 服务器的 allowed_domains；handle_permission_prompts: true 时宿主弹交互式授权",
+    "tabGroupSandbox": "所有工具只能操作本会话 MCP tab group 内的标签页",
+    "transport": "每实例独立 unix socket（PID 后缀 /tmp/claude-mcp-browser-bridge-<pid>）、0700 目录强制、allowed_origins 锁定唯一扩展 ID",
+    "degradation": "扩展未连接时应请用户安装（https://claude.ai/chrome），禁止静默退化为整屏 CU"
+  },
+  "desktopVariants": {
+    "inAppBrowser": "Browser pane（应用内浏览器面板）：同一套工具的第二注册表（tabs_context/tabs_create 无 _mcp 后缀）；computer 描述改为 Mouse/keyboard automation in the Browser pane；navigate 未开面板时自动打开",
+    "previewTools": "preview_start/stop/list/logs/console_logs/screenshot/snapshot/inspect/click/fill/eval/network/resize（Cowork Web 应用预览）",
+    "framebuffer": "framebuffer_list/attach/screenshot/zoom/cursor_position/click/type/key/scroll/drag/move/hold_key/batch（VNC 客机屏幕；pixelGuard 比对目标像素、未观察不许动、用户抢占检测）"
+  }
+}

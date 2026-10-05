@@ -1,0 +1,324 @@
+{
+  "_provenance": {
+    "status": "实测（二进制内嵌 schema JSON 完整还原 + 会话实录比对）",
+    "evidence": [
+      "agents/kimi-code/computer-use.md §3（18+2 工具逐一参数级还原）",
+      "agents/kimi-code/evidence/inventory.md §3.4（strings 定位 {\"schemas\":… 文件偏移 2604544，JSONDecoder raw_decode 解析出 18 工具，存档 /tmp/kimicu-mcp-schemas.json 24840 字节）+ §10 会话实录工具名统计",
+      "agents/kimi-code/evidence/inventory.md §4（node-repl 包：tool-catalog.mjs METHODS 白名单 + ARGUMENT_ALIASES + schema.mjs 枚举常量）"
+    ],
+    "original_path": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu 二进制（内嵌 MCP schema JSON，偏移 2604544）+ KimiCU.app/Contents/Resources/node-repl/packages/kimi-cu/trusted-service/{tool-catalog,schema}.mjs",
+    "confidence": "工具名/关键参数/枚举/上限=高（schema JSON 与 JS 目录文件直接还原）；部分参数的精确类型为分册摘要=中",
+    "notes": "MCP server 名 plugin-kimi-cu:mac；schema 层同时接受 snake_case 与 camelCase 别名，未知字段严格拒绝（KIMI_CU_UNKNOWN_FIELD）后统一翻译为原生 ToolRouter 字段；js/js_reset 由原生 ToolRouter 另行接受（native 字段）"
+  },
+  "server": {
+    "stdio_command": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu mcp",
+    "server_name_observed": "plugin-kimi-cu:mac",
+    "transport": "stdio JSON-RPC（MCP）"
+  },
+  "argument_aliases": {
+    "note": "双轨别名（snake/camel），校验严格拒绝未知字段",
+    "pairs": [
+      "window_id / windowId / id",
+      "screenshot_id / screenshotId",
+      "index / element_index",
+      "keys / key",
+      "selection / selection_type",
+      "autosubmit / autosubmit_search_fields",
+      "from_x / fromX（drag 系）"
+    ]
+  },
+  "enums": {
+    "MOUSE_BUTTONS": [
+      "left",
+      "right",
+      "middle",
+      "l",
+      "r",
+      "m"
+    ],
+    "APP_STATE_MODES": [
+      "full",
+      "image",
+      "ax"
+    ],
+    "PASTE_FORMATS": [
+      "text",
+      "md",
+      "html"
+    ],
+    "SELECTION_TYPES": [
+      "text",
+      "cursor_before",
+      "cursor_after"
+    ],
+    "CLICK_CHANNEL": [
+      "auto",
+      "skylight",
+      "public"
+    ]
+  },
+  "limits": {
+    "MAX_DRAG_PATHS": 500,
+    "MAX_PATH_POINTS": 1024,
+    "ADDITIONAL_WINDOW_IDS_MAX": 3
+  },
+  "tools": [
+    {
+      "name": "list_apps",
+      "category": "observe",
+      "required": [],
+      "key_params": {
+        "running_only": "bool"
+      },
+      "semantic": "可定位 app（name/bundle_id/pid/is_running/has_cef/has_chromium_input_surface）；false 时还扫描已安装用户 app（pid=0=未运行），过滤内部 helper/后台服务"
+    },
+    {
+      "name": "list_windows",
+      "category": "observe",
+      "required": [],
+      "key_params": {
+        "app": "string?",
+        "pid": "int?"
+      },
+      "semantic": "屏上可定位窗口（window_id、title）"
+    },
+    {
+      "name": "get_window",
+      "category": "observe",
+      "required": [
+        "window_id"
+      ],
+      "semantic": "Window2 句柄 → app/pid/id/title；窗口已关则报错"
+    },
+    {
+      "name": "get_app_state",
+      "category": "observe",
+      "required": [
+        "app 或 pid"
+      ],
+      "key_params": {
+        "mode": "full|image|ax",
+        "ax_filter": "string?",
+        "rect": "{x,y,width,height}?",
+        "screenshot_detail": "standard|high",
+        "disable_diff": "bool?",
+        "additional_window_ids": "≤3",
+        "window_id": "int?"
+      },
+      "semantic": "主观察工具：截图 + 收敛 AX 树，scope 到主窗口；diff 模式只回增量（disable_diff 回全树）；rect 用窗口内点坐标且原生分辨率裁剪；输出 is_electron/has_cef/has_chromium_input_surface 供路由判断；产生 AX snapshot 身份（snapshot_id）供后续 index 操作绑定"
+    },
+    {
+      "name": "get_window_state",
+      "category": "observe",
+      "required": [
+        "window_id"
+      ],
+      "key_params": {
+        "include_screenshot": "bool?",
+        "include_text": "bool?",
+        "rect": "{}?"
+      },
+      "semantic": "按窗口号定点观察"
+    },
+    {
+      "name": "launch_app",
+      "category": "app",
+      "required": [
+        "app"
+      ],
+      "semantic": "启动已安装 app 但不激活"
+    },
+    {
+      "name": "activate_window",
+      "category": "app",
+      "required": [
+        "目标四选一：window_id/app/pid/其他"
+      ],
+      "semantic": "显式抬窗；Use only when a task requires visible interaction"
+    },
+    {
+      "name": "click",
+      "category": "action",
+      "required": [
+        "index 或 x,y"
+      ],
+      "key_params": {
+        "index": "int?（须携带对应 snapshot_id）",
+        "x": "截图像素",
+        "y": "截图像素",
+        "button": "left|right|middle",
+        "count": "1..3",
+        "hold_ms": "int?",
+        "hover_ms": "int?",
+        "channel": "auto|skylight|public",
+        "allow_foreground_fallback": "bool（默认 never-front）",
+        "verify_after": "bool"
+      },
+      "semantic": "后台定向点击；It never uses a HID tap or moves the real pointer；channel auto=SkyLight 窗口路由（WindowServer 补全窗口号/局部坐标）、public=整段序列 NSEvent 工厂事件带窗口号 postToPid（被吞事件可能分钟级落地，无自动跨通道重试，盲目重发可能双击）；verify_after 未观察到效果 → ok:true, verified:false, verification_required"
+    },
+    {
+      "name": "type_text",
+      "category": "action",
+      "required": [
+        "text"
+      ],
+      "key_params": {
+        "index": "int?",
+        "x/y": "截图像素?",
+        "clear": "bool（先全选删除=替换）",
+        "submit": "bool（打完回车，定向输入先回读验证再回车）",
+        "activate": "bool（强制前台路径，报 used_backend=foreground_targeted）"
+      },
+      "semantic": "后台输入 Unicode 文本；Cursor-safe with no HID or real-pointer movement；Electron 无 AX 回读 → verified:false, verification_required:screenshot"
+    },
+    {
+      "name": "paste",
+      "category": "action",
+      "required": [],
+      "key_params": {
+        "format": "text|md|html"
+      },
+      "semantic": "临时剪贴板投递并在事后恢复；富文本格式支持"
+    },
+    {
+      "name": "press_key",
+      "category": "action",
+      "required": [
+        "keys"
+      ],
+      "key_params": {
+        "keys": "xdotool 风格 DSL（return / cmd+a / cmd+shift+t；空格分隔批量；空格键拼 space）",
+        "activate": "bool?"
+      },
+      "semantic": "默认后台投递，目标窗口被完全遮挡也能落键（verified for native apps on macOS 26）；activate:true 短暂抬窗冲刷输入"
+    },
+    {
+      "name": "scroll",
+      "category": "action",
+      "required": [
+        "index 或 x,y"
+      ],
+      "key_params": {
+        "page": "int（正=向上，优先）",
+        "dx/dy": "legacy 行级滚轮"
+      },
+      "semantic": "Returns ok:false when no movement is detected or the target is already at the end；cursor-safe"
+    },
+    {
+      "name": "set_value",
+      "category": "action",
+      "required": [
+        "index",
+        "value"
+      ],
+      "key_params": {
+        "autosubmit": "bool（AXSearchField 验证写入后后台回车提交）"
+      },
+      "semantic": "原生控件走 AXValue；Electron/Web 文本控件走 no-raise 后台替换路径（清空而非追加）；无法确认投递时返回 verified:false"
+    },
+    {
+      "name": "perform_secondary_action",
+      "category": "action",
+      "required": [
+        "index"
+      ],
+      "key_params": {
+        "action": "string?（默认 AXShowMenu=右键菜单）"
+      },
+      "semantic": "元素二级 AX 动作"
+    },
+    {
+      "name": "select_text",
+      "category": "action",
+      "required": [
+        "index"
+      ],
+      "key_params": {
+        "start+length": "精确偏移?",
+        "prefix/suffix": "按可见文本消歧?",
+        "selection": "text|cursor_before|cursor_after"
+      },
+      "semantic": "元素内选中文本或置光标；内容选择回显 selected_text"
+    },
+    {
+      "name": "drag",
+      "category": "action",
+      "required": [
+        "from_x",
+        "from_y",
+        "to_x",
+        "to_y"
+      ],
+      "key_params": {
+        "hold_ms": "int?",
+        "step_ms": "int?",
+        "steps": "int?"
+      },
+      "semantic": "Cursor-safe; unreliable on Chromium；标题栏起点拖动 = 经验证的 AXPosition 写入移动窗口（synthetic events cannot engage the WindowServer move session）"
+    },
+    {
+      "name": "drag_paths",
+      "category": "action",
+      "required": [
+        "paths",
+        "window_id"
+      ],
+      "key_params": {
+        "paths": "1..500 × {points[2..1024], steps?, hold_ms?, step_ms?}",
+        "abort_if_cursor_in_window": "bool（用户光标守卫）"
+      },
+      "semantic": "同窗口批量笔画（绘画/手势）；非事务——返回 results/delivered/total，中断可从首个 false 续作"
+    },
+    {
+      "name": "debug_tap",
+      "category": "debug",
+      "required": [],
+      "key_params": {
+        "pid": "int",
+        "seconds": "默认 30"
+      },
+      "semantic": "在服务内对某 pid 起带注解的 event tap，把投递到该 pid 的每个事件记录到 /tmp/kimicu-pidtap-<pid>.log；只读"
+    },
+    {
+      "name": "js",
+      "category": "code",
+      "native_field": true,
+      "required": [
+        "code"
+      ],
+      "key_params": {
+        "timeout_ms": "int?"
+      },
+      "semantic": "node-repl 代码模式入口（自带运行时）：bin/node + trusted-worker.mjs 监督者 + kernel.mjs 每 cell 内核（NDJSON kernel-protocol v1）+ meriyah 静态检查；@kimi/cu facade 18 方法同名导出，经 nodeRepl.rpc('kimi-cu',{version:1,method,args}) 走 UDS"
+    },
+    {
+      "name": "js_reset",
+      "category": "code",
+      "native_field": true,
+      "required": [],
+      "semantic": "清空 REPL 变量并重建内核；不清理 app 内草稿/撤销；升级后须 reset + 重连 MCP"
+    }
+  ],
+  "security_model": {
+    "uds_auth": "runtime.token + hello 握手 {type:'hello', token, protocol:'KimiCU-UDS-1', versions:[1], client_name, observation_context}；peer 身份校验（rejected peer identity / rejected peer uid= / service: rejected untrusted peer pid=）",
+    "frame_protocol": "KimiCU-UDS-1：4 字节 LE 长度 + UTF-8 JSON，MAX_FRAME_BYTES=8MiB",
+    "observation_context": "client 随机 UUID 在 hello 中回显校验；快照/坐标缓存跨上下文不可复用（防多客户端串话）；snapshot_id 跨观察上下文直接拒绝",
+    "approval_token": "KIMICU_RUNTIME_REQUIRE_APPROVAL_TOKEN / KIMICU_RUNTIME_APPROVAL_TOKEN_FILE 可强制；缺失/无效报 approval_token is invalid or missing",
+    "version_gate": "assertRuntimeCompatible：低于 minimum_runtime_version 报 KIMI_CU_RUNTIME_TOO_OLD 并给出升级 URL",
+    "never": [
+      "HID tap",
+      "移动真实光标",
+      "拦截用户真实输入",
+      "未经授权激活 app"
+    ],
+    "foreground_gate": "allow_foreground_fallback（调用方）× 服务策略（默认 never-front）双重门",
+    "delivery_verification": "投递成功 ≠ 生效：delivery_unverified（AX 回读未见文本）/ focus_unverified（无 AX 回读面）/ effect:unverifiable + verified:false；未观察到效果的点击绝不自动重发"
+  },
+  "error_codes": [
+    "KIMI_CU_UNKNOWN_FIELD（未知参数字段）",
+    "KIMI_CU_RUNTIME_TOO_OLD / KIMI_CU_RUNTIME_VERSION_UNKNOWN（版本门）",
+    "snapshot_id is stale or belongs to another observation context（跨上下文拒绝）",
+    "delivery_unverified / focus_unverified（投递验证三态）",
+    "approval_required / requires_approval_token / approval_token is invalid or missing"
+  ]
+}

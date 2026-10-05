@@ -1,0 +1,63 @@
+{
+  "_provenance": {
+    "status": "实测",
+    "evidence": [
+      "agents/cursor/computer-use.md §3（16 工具清单含 schema 与语义）、§4（观察）、§6（安全）",
+      "agents/cursor/evidence/inventory.md §4.2（tools.ts 工具面与平台条件编译）、§4.6（refusalResult 契约）、§4.5（sidecar 传输与校验）"
+    ],
+    "note": "手写整理 Cursor 内置扩展 cursor-computer-use（macOS companion 视角）的 CU 工具面：工具名与平台条件编译逐字来自随包 TS 源码 src/mcp/tools.ts（evidence §4.2）。本机 CU 未启用（Statsig 门 mac_computer_use 默认关），此为静态逆向所得。"
+  },
+  "provider": { "id": "cursor-computer-use", "extension": "cursor.cursor-computer-use", "registration": "vscode.cursor.registerMcpProvider" },
+  "gating": {
+    "statsigGates": { "mac_computer_use": false, "local_computer_use": false, "windows_computer_use_batch": false, "sand_computer_use_unicode_typing": false },
+    "behavior": "门为关时挂 onDidChangeGates 监听延迟注册（区分『门真的关』与『Statsig 未水合』）"
+  },
+  "macModes": {
+    "companion": "后台驱动单个 macOS app，走 AX 读写元素，不动真实鼠标、不抢屏幕（本机 Glass 代理默认）",
+    "remote": "接管整个屏幕移动真实鼠标；首个输入动作前必须 computer_start_control 租约，结束 computer_release_control"
+  },
+  "coordinateContract": "坐标一律相对最近一次截图画布（固定 canvas 尺寸，(0,0) 左上，y 向下）；每次动作返回动作后的新截图（look before you click）",
+  "tools": [
+    { "name": "computer_screenshot", "scope": "观察", "description": "主屏或单 app 窗口截图；app 目标下快照仍新鲜会复用 snapshot_id 而不重走 AX 树", "parameters": { "app?": "{pid|bundle_id|app_path|app_name} 四选一" } },
+    { "name": "computer_app_state", "scope": "观察", "description": "读 AX 树为纯文本：每行 [id] ROLE name=… value=… settable actions=… 按深度缩进；末行是 snapshot_id；(+N descendants omitted) 行可用 element_id+snapshot_id 展开", "parameters": { "target": "必填", "element_id?": "string", "snapshot_id?": "string" } },
+    { "name": "computer_apps", "scope": "观察", "description": "列运行中的 macOS app（frontmost 优先），给出 pid + target_id" },
+    { "name": "computer_resolve_app", "scope": "观察", "description": "解析单个 app，未运行则启动但不激活，返回 pid+target_id", "parameters": { "pid|bundle_id|app_path|app_name": "四选一" } },
+    { "name": "computer_check_permissions", "scope": "观察", "description": "被动报告 Accessibility + Screen Recording 授权状态（仅 macOS）；指令第一条即先调它" },
+    { "name": "computer_wait", "scope": "观察", "description": "等待稳定；companion 模式纯文本返回（截屏会误抓主屏）", "parameters": { "ms": "int ≤30000（默认 1000）" } },
+    { "name": "computer_click", "scope": "动作/屏幕", "description": "坐标点击；每次动作返回动作后的新截图", "parameters": { "x": "number*", "y": "number*", "button?": "left|right|middle", "count?": "1..3", "modifier_keys?": "string[]", "zoom_id?": "string（Win）" } },
+    { "name": "computer_move", "scope": "动作/屏幕", "description": "悬停移动（揭示 hover UI）", "parameters": { "x": "number*", "y": "number*" } },
+    { "name": "computer_drag", "scope": "动作/屏幕", "description": "按下-拖动-释放；Win 侧 >2 点路径限制在起始窗口内", "parameters": { "from?": "[x,y]", "to?": "[x,y]", "path?": "2–64 点（Win）", "button?": "enum", "modifier_keys?": "string[]" } },
+    { "name": "computer_scroll", "scope": "动作/屏幕", "parameters": { "x": "number*", "y": "number*", "direction": "up|down|left|right", "amount": "1..20（macOS 默认 3 ticks，Win 10）" } },
+    { "name": "computer_key", "scope": "动作/屏幕", "description": "按键/和弦（\"Return\"、\"cmd+l\"；Win 侧 win+r、裸 alt=KeyTips）", "parameters": { "key": "string ≤100 字符" } },
+    { "name": "computer_type", "scope": "动作/双 scope", "description": "键入文本（换行=回车、制表=Tab）；app 目标下走 AX 写入、屏幕 scope typing 在 companion 模式直接拒绝", "parameters": { "text": "string 1..4000", "target?": "app 对象", "element_id?": "string", "snapshot_id?": "string" } },
+    { "name": "computer_set_value", "scope": "动作/app（companion 专属，走 AX）", "description": "通过 AX 直接替换 settable 元素的值，不敲键盘；树未变则 snapshot_id 持续有效，可连续填多个字段", "parameters": { "target": "必填", "element_id": "必填", "snapshot_id": "必填", "value": "必填" } },
+    { "name": "computer_app_action", "scope": "动作/app", "description": "AX 动作：press（隐含按钮/链接/菜单项/复选框/标签页）或元素 actions= 列表中的动作；元素在树中时优先于坐标点击", "parameters": { "target": "必填", "element_id": "必填", "snapshot_id": "必填", "action": "必填（如 show-menu、scroll-to-visible）" } },
+    { "name": "computer_start_control", "scope": "租约", "description": "companion：仅升级路径（用户要求接管显示时才允许）；remote：首个输入动作前必须调用", "platforms": "非 Windows（Win 侧租约只控『屏上存在感』不做输入门控，实测挂着多花约 13 秒/会话）" },
+    { "name": "computer_release_control", "scope": "租约", "description": "屏幕级操作结束后调用" }
+  ],
+  "platformVariants": {
+    "windowsOnly": [
+      { "name": "computer_zoom", "description": "把最近截图局部按原生分辨率放大回传，返回 zoom_id；后续 x/y 可以是 zoom 图坐标（设计动机：一次 Paint 会话 21 次点击失败源于目标只有几个 canvas 像素宽）", "parameters": { "x1": "int", "y1": "int", "x2": "int", "y2": "int" } },
+      { "name": "computer_batch", "description": "批量原子执行（步骤内是 sidecar 原生词汇）", "parameters": { "steps": [{ "name": "string", "arguments": "object", "expect_change": "bool" }], "allow_destructive": "bool" } }
+    ],
+    "actionResultInset": "Win 侧点击/拖动/键入的返回自带 2× 局部放大图（省一次 zoom 往返）"
+  },
+  "refusalContract": {
+    "shape": "isError:true + 文本（含 Refusal code 与推荐下一步）+ structuredContent {code, message, escalation: {recommended, reason}}",
+    "escalation": {
+      "retry": "原样重试并修正提示的参数；未产生任何真实动作",
+      "ask_user": "停下转告用户；只有机器前的人能解除",
+      "use_different_tool": "先执行提示的工具（通常是 screenshot）再重复动作",
+      "stop": "结束本轮 computer use，不再调用任何输入/控制工具"
+    },
+    "userAborted": "保留原始 code-only 形态",
+    "sidecarInstallFailureCodes": ["offline", "proxy_blocked", "cdn_error", "download_corrupt", "signature_unverifiable", "install_locked", "install_failed"]
+  },
+  "sidecarTransport": {
+    "macos": "service.json 会合文件（~/Library/Application Support/cursor-computer-use/service.json，env CUA_APP_SUPPORT_DIR 可覆盖）+ /usr/bin/open -n -g 拉起 + Unix socket + 行分隔 JSON-RPC",
+    "windows": "按用户 SID 派生命名管道（cursor-cua 前缀）+ 每连接 launch token（64 位 hex、文件 mode 0600）握手",
+    "linux": "云端 worker：CLI 内置 xdotool（DISPLAY=:1）+ ffmpeg x11grab → WEBP 截屏",
+    "timeouts": { "defaultCallTimeoutMs": 15000, "typingTimeoutPerCharMs": 13, "typingTimeoutBaseMs": 8000 },
+    "distribution": "CDN manifest 路径强制 /computer-use-sidecar/releases/{lane}/{cursorVersion}/{40位sha}.json；sha256 校验；codesign 锚定 TeamID DCNK4UB866、pinnedSignerSubjects [Anysphere, Inc.]；跨进程安装锁"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "_provenance": {
+    "status": "实测（app.asar 静态逆向）",
+    "evidence": [
+      "agents/minimax-code/browser-use.md §1/§3.2（13 个细粒度工具名与 full/both 暴露形态）",
+      "agents/minimax-code/evidence/inventory.md C 节（builtin-browser-defs.ts 780-1006 行 13 个单动作工具 schema）"
+    ],
+    "original_path": "/Applications/MiniMax Code.app/Contents/Resources/app.asar → node_modules/@mavis/agent-tools/src/desktop/builtin-browser-defs.ts（780-1006 行）",
+    "confidence": "工具名清单=高；与统一工具『同源、能力一一对应』的关系=高；单个工具的参数细节未逐个还原，见各条目指向统一 action=中",
+    "notes": "由 buildLocalBrowserRuntimeTools 的 exposure:'full'|'both' 控制暴露；能力与 browser 工具对应 action 完全一致"
+  },
+  "tools": [
+    {
+      "name": "browser_inspect",
+      "equals_action": "inspect",
+      "semantic": "可交互元素快照 + 不透明 ref + 分页"
+    },
+    {
+      "name": "browser_navigate",
+      "equals_action": "navigate",
+      "semantic": "导航（含 replaceCurrentTab 语义）"
+    },
+    {
+      "name": "browser_click",
+      "equals_action": "click",
+      "semantic": "ref/坐标点击 + effect 验证"
+    },
+    {
+      "name": "browser_type",
+      "equals_action": "type",
+      "semantic": "逐键输入 + 超时预算"
+    },
+    {
+      "name": "browser_press_key",
+      "equals_action": "press_key",
+      "semantic": "按键"
+    },
+    {
+      "name": "browser_scroll",
+      "equals_action": "scroll",
+      "semantic": "滚动 + 结构化 effect"
+    },
+    {
+      "name": "browser_hover",
+      "equals_action": "hover",
+      "semantic": "悬停 + tooltip 语义恢复"
+    },
+    {
+      "name": "browser_wait_for",
+      "equals_action": "wait",
+      "semantic": "条件等待"
+    },
+    {
+      "name": "browser_get_dom",
+      "equals_action": "query(kind=dom)",
+      "semantic": "DOM markup 查询"
+    },
+    {
+      "name": "browser_screenshot",
+      "equals_action": "screenshot",
+      "semantic": "截图（viewport/fullPage/clip）"
+    },
+    {
+      "name": "browser_paste",
+      "equals_action": "paste",
+      "semantic": "粘贴纯文本（不读宿主剪贴板）"
+    },
+    {
+      "name": "browser_verify_text",
+      "semantic": "文本存在性验证（full 形态独立工具；与统一工具 verify 相关能力对应）",
+      "equals_action": null,
+      "confidence": "低——分册仅列名未展开参数"
+    },
+    {
+      "name": "browser_inspect_editable_targets",
+      "equals_action": "query(kind=editable)",
+      "semantic": "可编辑目标快照（可续页；inputStrategy 如 focused-keyboard 会影响 CDP 事件预算）"
+    }
+  ]
+}

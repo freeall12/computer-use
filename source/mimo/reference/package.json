@@ -1,0 +1,20 @@
+{
+  "name": "mimo-automation-reference-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "重构的参考客户端骨架：按 Xiaomi MiMo（@mi/mimo-computer-use 0.7.11）的协议形状实现 MCP stdio 客户端 + @mimo/sky 与 agent.browsers 类型化门面。全部代码为本仓库原创撰写，不含任何小米专有代码。",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "example:list": "tsx examples/list-tools.ts",
+    "example:sky": "tsx examples/sky-ground.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

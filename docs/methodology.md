@@ -1,6 +1,6 @@
 # 逆向方法论：如何在不运行、不抓包的前提下还原一个 Agent 的 CU/BU 能力
 
-> 本文总结本轮 8 个 Agent 逆向实际使用的手段，可复现于任何 macOS 本机安装的桌面 Agent。
+> 本文总结本轮 12 个 Agent 逆向实际使用的手段，可复现于任何 macOS 本机安装（或曾安装、或仅存上游开源）的桌面 Agent。
 > 各 agent 的具体命令与输出存档见其 [evidence/inventory.md](../agents/)（ZCode/Codex/Claude/Cursor/MiniMax/Synara/Kimi 各一份）。
 
 **目录**
@@ -14,10 +14,11 @@
 7. [MCP/IPC 协议还原](#7-mcpipc-协议还原)
 8. [运行痕迹与会话数据](#8-运行痕迹与会话数据)
 9. [负证据判定：如何证明「未启用」](#9-负证据判定如何证明未启用)
-10. [对照样本反推](#10-对照样本反推)
-11. [置信度标注与交叉验证](#11-置信度标注与交叉验证)
-12. [合规边界](#12-合规边界)
-13. [局限与失效模式](#13-局限与失效模式)
+10. [上游源码基线法：对象已卸载时的开源替代路径](#10-上游源码基线法对象已卸载时的开源替代路径)
+11. [对照样本反推](#11-对照样本反推)
+12. [置信度标注与交叉验证](#12-置信度标注与交叉验证)
+13. [合规边界](#13-合规边界)
+14. [局限与失效模式](#14-局限与失效模式)
 
 ---
 
@@ -192,7 +193,31 @@ head -40 ~/.cursor/browser-logs/snapshot-*.log    # data-cursor-ref 快照格式
 
 通用准则：负证据要覆盖**门控、安装、进程、配置、权限**五个面；找到「名字像但无关」的东西必须显式排除而不是忽略（防误判是负证据的核心工作）。
 
-## 10. 对照样本反推
+## 10. 上游源码基线法：对象已卸载时的开源替代路径
+
+当分析对象**本机已卸载**但上游开源时，分析基线从「本机文件」切换为「上游仓库的某个 commit」——Goose 分册是本轮唯一的完整案例（本机仅存 99 个断链 skills symlink，改用 `block/goose` v1.53.0、commit `5bd5e548`（2026-10-05，Apache-2.0）做全套分析）。
+
+流程：
+
+```bash
+git clone --depth 1 https://github.com/block/goose /tmp/goose-src
+cd /tmp/goose-src && git log -1 --format='%H %ci'      # 锁定 commit，写进分册头部
+grep version Cargo.toml                                 # workspace 版本 + LICENSE
+ls crates/goose-mcp/src/                                # 能力载体（computercontroller/peekaboo/...）
+grep -n '"id": "computercontroller"' -A 5 ui/desktop/src/built-in-extensions.json   # 默认开关
+```
+
+要点：
+
+1. **证据等级反而更高，但断言范围变小**：源码可引 `文件:行号`、可编译验证，高于一切反编译；但「源码如此」≠「本机曾装版本如此」——必须写「按上游 v1.53.0 分析」而不是「本机 Goose 行为为」。Goose 分册还给出跨版本陷阱实例：1.0.x 时代的 Computer Controller 是外部 MCP server（`uvx mcp-server-computer-controller`、多细粒度工具），现行版本才内置化并改为 Peekaboo 单工具透传——「做历史对齐时勿混用两代工具面」。
+2. **与负证据判定组成三段式结论**：本机残留（断链 symlink、无 config.yaml、无二进制）证明「曾安装、已卸载」；上游源码证明「该产品的能力面是什么」；两者合并为「曾安装过 Goose（且做过 skills 定制），分析时点前已卸载，其 CU/BU 能力面如上游源码所述」。
+3. **注册表/feature gate 是源码分析的第一站**：`BUILTIN_EXTENSIONS` 注册表 + feature gate（`--features computer-controller`）+ 桌面端 `built-in-extensions.json` 的 `enabled:false`——三层共同决定「代码在库里」与「用户可用」的差距，与 [reusable/patterns.md P11](../reusable/patterns.md#p11)（fail-closed 门控）互为印证。
+4. **开源边界要核**：上游开源 ≠ 全部开源。对照 [source/README.md](../source/README.md) 的判定表——Codex 的 npm 仓库（Apache-2.0）是 CLI 开源仓，但桌面控制关键组件（`@oai/cua`/`@oai/sky`/SkyComputerUseService）不在其中，故不 vendor；Goose 的 goose-mcp 子集（7 文件，sha256 校验）、MiniMax/Synara 的 cua-driver 契约子集（MIT，两版本 28 文件 blob-SHA 一致）、Qoder 的 qwen-node-repl（Apache-2.0，40 文件）、MiMo 插件 SDK（MIT）则满足「上游本身开源 + 附 PROVENANCE/LICENSE」的 vendor 红线。
+5. **半开源自带源码的同族形态**：Cursor `cursor-computer-use` 扩展随包携带完整 TS 源码（但属专有分发物、无许可证，不构成可 vendor 上游）；Qoder `node-repl/UPSTREAM.md` 反向指认上游——「源码层证据」在本轮以四种形态出现（开源仓 clone、随包源码、UPSTREAM 指认、vendor 子集），可信度依次为：开源仓 ≥ 随包源码 > UPSTREAM 指认 > 二进制符号。
+
+---
+
+## 11. 对照样本反推
 
 当分析对象缺乏源码级证据时，用一个「已知面」作对照：
 
@@ -202,7 +227,7 @@ head -40 ~/.cursor/browser-logs/snapshot-*.log    # data-cursor-ref 快照格式
 
 对照的纪律：**结论写成关系而非抄袭**——「API 面逐字对齐（自述）」「机制公开致谢」「同一范式平行实现」是三种不同的谱系结论，证据等级不同。
 
-## 11. 置信度标注与交叉验证
+## 12. 置信度标注与交叉验证
 
 每个分册末尾都有置信度表（高/中/低/待复核），判定规则：
 
@@ -215,7 +240,7 @@ head -40 ~/.cursor/browser-logs/snapshot-*.log    # data-cursor-ref 快照格式
 
 交叉验证的常见组合：内嵌 schema JSON ↔ 会话实录工具名单（Kimi）；api.json manifest ↔ Proxy 运行时白名单（ZCode）；provenance.json ↔ strings 引擎能力（Synara）；门控默认值 ↔ 安装目录状态（Cursor）。
 
-## 12. 合规边界
+## 13. 合规边界
 
 本轮全部工作遵守的自约束（各分册「方法与合规说明」的公约数）：
 
@@ -226,7 +251,7 @@ head -40 ~/.cursor/browser-logs/snapshot-*.log    # data-cursor-ref 快照格式
 - **无 DRM 规避**：分析对象均为本机合法安装、对用户可见的文件；未做任何解密/破解/提取受保护内容。
 - **商标与归属**：各产品名称与商标归各自所有者；本文档为独立研究，与各厂商无关。
 
-## 13. 局限与失效模式
+## 14. 局限与失效模式
 
 诚实记录这套方法的盲区，供复用者预期：
 

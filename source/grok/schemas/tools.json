@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "grok-bot-cu-bu-tool-surface",
+  "description": "Grok Bot 桌面端 0.66.0 的 Computer Use 工具面规范化整理。手写 cleanroom 重述，非原始 dump；每字段 provenance: observed=被分析对象内嵌原文直录, inferred=由调用方代码/错误文本/协议位置推断。",
+  "baseline": {
+    "app": "Grok Bot 0.66.0 (com.anysphere.sand, Electron 42.1.0)",
+    "sidecar": "CUGrokBotService 1.0.0 (co.anysphere.grok-bot-computer-use, Swift CUCore)",
+    "date": "2026-10-06",
+    "transport": {
+      "local_rpc": {
+        "kind": "unix-domain-socket, newline-delimited JSON request/response",
+        "request_shape": "{id, method, requestID, arguments?, timeoutSeconds?, startedAtEpochSeconds?, deadlineEpochSeconds?, mode?, sessionId?}",
+        "methods": ["ping", "initialize", "tools/list", "tools/call", "notifications/initialized", "notifications/cancelled", "control/start", "control/release", "permissions/status", "permissions/open-settings"],
+        "service_discovery": "~/Library/Application Support/<appSupportDir>/service.json -> rpcSocketPath",
+        "variants": {
+          "prod": { "appName": "Grok Bot Computer Use", "bundleId": "co.anysphere.grok-bot-computer-use", "appSupportDir": "grok-bot-computer-use", "executable": "CUGrokBotService" },
+          "lab": { "appName": "Grok Bot Lab Computer Use", "bundleId": "co.anysphere.grok-bot-lab-computer-use", "appSupportDir": "grok-bot-lab-computer-use", "executable": "CUGrokBotLabService" },
+          "dev": { "appName": "Grok Bot Dev Computer Use", "bundleId": "co.anysphere.grok-bot-dev-computer-use", "appSupportDir": "grok-bot-dev-computer-use", "executable": "CUGrokBotDevService" }
+        },
+        "client_timing": { "defaultCallTimeoutMs": 45000, "launchReadyTimeoutMs": 8000, "launchPollIntervalMs": 200, "relaunchOn": ["ENOENT", "ECONNREFUSED"] },
+        "env_overrides": ["GROK_BOT_SIDECAR_APP", "CUA_APP_SUPPORT_DIR", "CUA_DIRECT_LAUNCH", "CUA_IDLE_EXIT_SECONDS (sidecar 侧)"],
+        "provenance": "observed (local-exec-daemon/main.cjs 与 sidecar strings)"
+      },
+      "mcp_stdio": {
+        "kind": "sidecar --mcp-stdio --conversation-id <id> 以 MCP server 身份供目录",
+        "embedded_catalog": "16 工具 computer_* + instructions + refusals 分类表整体内嵌于二进制",
+        "provenance": "observed (sidecar strings, CUMcpStdioMode/CUMcpServer)"
+      },
+      "cloud_proto": {
+        "kind": "ComputerUseArgs 批量动作 (proto agent.v1)",
+        "fields": "tool_call_id, actions[], description?, bind_unmapped_characters?, desktop_lease_actor_id?, screenshot_settle_ms?",
+        "provenance": "observed (proto.cjs 反射表)"
+      }
+    },
+    "coordinate_canvas": { "width": 1280, "height": 800, "origin": "top-left", "provenance": "observed (catalog 描述: fixed 1280x800 screenshot canvas, x<=1279, y<=799)" },
+    "screenshot_budget_bytes": 1048576,
+    "gates_default_off": ["local_computer_use", "mac_computer_use", "windows_computer_use_batch", "computer_use_next_action", "sand_computer_use_unicode_typing"],
+    "cloud_cu_model_default": "sand-cua"
+  },
+
+  "toolsets": [
+    {
+      "id": "companion_mcp",
+      "exposure": "sidecar --mcp-stdio；模型侧 MCP server；默认 app target（后台、不动真光标、不抬升窗口），scope=screen 需 computer_start_control 升级",
+      "provenance": "observed",
+      "concurrency_rule": "禁止并行调用；同一机器一次一个动作（catalog instructions 原文）",
+      "refusal_protocol": {
+        "shape": "isError=true + structuredContent{code, message, escalation:{recommended, reason}}",
+        "escalation_by_code": {
+          "capture_failed": "retry", "invalid_arguments": "retry", "input_failed": "retry", "timeout": "retry",
+          "secure_desktop": "ask_user", "input_desktop_unavailable": "ask_user", "target_elevated": "ask_user", "unsupported_request": "ask_user", "sidecar_unavailable": "ask_user", "session_busy": "ask_user", "permission_required": "ask_user",
+          "screenshot_required": "use_different_tool", "unknown_tool": "use_different_tool", "outcome_unknown": "use_different_tool", "session_required": "use_different_tool",
+          "user_aborted": "stop"
+        },
+        "escalation_semantics": {
+          "retry": "未生效；修正消息所指参数后重发同一工具是安全的",
+          "ask_user": "只有机器前的人能解决；转告消息内容并等待",
+          "use_different_tool": "须先跑另一工具（通常 computer_screenshot）再重复动作",
+          "stop": "本回合不再调用任何输入/控制工具"
+        },
+        "provenance": "observed (内嵌 refusals 表)"
+      },
+      "tools": [
+        {
+          "name": "computer_screenshot",
+          "purpose": "截主屏或单 app 窗口；活快照新鲜时复用其 snapshot_id 且不重走 AX 树",
+          "params": {
+            "target": { "oneOf": [{ "scope": "const screen" }, { "scope": "const app", "pid": "int>=1", "target_id": "string(minLength 1)" }], "default": "随宿主注入的 app target", "note": "若传入 snapshot_id 则不返回树；否则返回图像不带树，需要元素 id 时调 computer_app_state" }
+          },
+          "returns": "图像（app target 场景为图像；复用活快照时附 snapshot_id）",
+          "errors": ["capture_failed", "permission_required"],
+          "annotations": { "readOnlyHint": true },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_click",
+          "purpose": "画布坐标点击；返回点击后截图（app target 仅文本，观察后再下一步）",
+          "params": {
+            "x": "int 0..1279 (required)", "y": "int 0..799 (required)",
+            "button": "left|right|middle (默认 left)",
+            "count": "int 1..3 (默认 1；2=双击)",
+            "coordinate_token": "app target 必填；来自本 app 最近一次 computer_screenshot；窗口移动/缩放或下次截图即失效",
+            "step": "string maxLength 120；展示给用户的动作短语"
+          },
+          "errors": ["screenshot_required", "invalid_arguments", "timeout", "input_failed", "user_aborted"],
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_move",
+          "purpose": "悬停移动以展开 hover UI；返回截图",
+          "params": { "x": "required", "y": "required", "coordinate_token": "app target 必填", "target?": "同 computer_screenshot" },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_drag",
+          "purpose": "按下-拖动-释放",
+          "params": { "from": "{x,y} (required)", "to": "{x,y} (required)", "button": "left|right|middle", "coordinate_token": "app target 必填", "step?": "用户文案" },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_type",
+          "purpose": "向文本元素/焦点域打字；优先 element_id；点击目标落空即拒绝；不抬升窗口不动真光标",
+          "params": {
+            "target": "仅 app scope（screen-scope 输入直接拒绝）",
+            "element_id+snapshot_id": "可选成对；与 coordinate_token 互斥",
+            "text": "非空 string (required)"
+          },
+          "errors": ["invalid_arguments", "input_failed", "outcome_unknown"],
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_key",
+          "purpose": "按键/组合键（Return/Escape/Tab/cmd+l 文法，+ 组合修饰键）；返回截图",
+          "params": { "key": "required", "target?": "同 screenshot" },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_scroll",
+          "purpose": "坐标滚动；返回截图",
+          "params": { "x?": "int", "y?": "int", "direction": "up|down|left|right (required)", "amount": "int", "coordinate_token": "app target 必填", "target?": "同 screenshot" },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_wait",
+          "purpose": "等待页面/动画稳定；仅文本返回",
+          "params": { "ms": "int 0..30000 (默认 1000)" },
+          "annotations": { "readOnlyHint": true },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_check_permissions",
+          "purpose": "被动上报辅助功能+屏幕录制授权态；无需在动作前调用",
+          "params": {},
+          "annotations": { "readOnlyHint": true },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_start_control",
+          "purpose": "升级阀：接管整屏并移动真光标；app target 无需会话；指令层禁止为打字/填表升级",
+          "params": {},
+          "errors": ["session_busy", "permission_required", "sidecar_unavailable"],
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_release_control",
+          "purpose": "结束整屏接管会话",
+          "params": {},
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_apps",
+          "purpose": "列出可驱动的运行中 app（Spotlight/通知中心/菜单栏 extra 不支持）",
+          "returns": "app 列表（pid/target_id/名称）",
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_resolve_app",
+          "purpose": "按四选一选择器解析 app（未运行则不激活启动），返回 pid+target_id",
+          "params": { "pid|bundle_id|app_path|app_name": "恰好其一 (required)", "step?": "用户文案" },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_app_state",
+          "purpose": "读 AX 树为文本：[id] ROLE name= value= settable actions=，深度缩进；预算截断行尾 (+N descendants omitted)，传 element_id 钻取展开并入同一 snapshot；末行为 snapshot_id",
+          "params": { "target": "app scope (required)", "element_id?": "int>=1（钻取）", "snapshot_id?": "与 element_id 成对" },
+          "annotations": { "readOnlyHint": true },
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_set_value",
+          "purpose": "AX 写值替换元素值（不走键盘）；文本返回；树未变则 snapshot 持续有效",
+          "params": { "target": "required", "element_id": "required", "snapshot_id": "required", "value": "required", "step?": "用户文案" },
+          "postcondition": "写后回读校验；读回不一致即报错（AXValue read back as ...）",
+          "provenance": "observed"
+        },
+        {
+          "name": "computer_app_action",
+          "purpose": "对树内元素执行 AX 动作：press，或元素 actions= 列表项（show-menu/scroll-to-visible 等）；树内元素优先于坐标点击",
+          "params": { "target": "required", "element_id": "required", "snapshot_id": "required", "action": "required", "step?": "用户文案" },
+          "provenance": "observed"
+        }
+      ]
+    },
+    {
+      "id": "local_rpc_actions",
+      "exposure": "宿主（local-exec-daemon local-cua 类）经 socket tools/call 直发的低层动作词汇；control/start(mode=remote)→sessionId 后调用",
+      "provenance": "observed (调用方代码) + observed (sidecar 校验错误文本)",
+      "tools": [
+        { "name": "computer_use_screenshot", "params": {}, "purpose": "截取当前目标；缓存几何供后续坐标动作", "provenance": "observed" },
+        { "name": "computer_use_click", "params": { "method": "coordinate", "x?": "int", "y?": "int", "button": "left|right|middle", "count": "1..3", "modifier_keys": "string[]" }, "provenance": "observed" },
+        { "name": "computer_use_scroll", "params": { "x?": "int", "y?": "int", "direction": "up|down|left|right", "amount": "int", "modifier_keys": "string[]" }, "provenance": "observed" },
+        { "name": "computer_use_mouse_move", "params": { "x": "int", "y": "int" }, "provenance": "observed" },
+        { "name": "computer_use_mouse_button", "params": { "button": "left|right|middle", "action": "down|up" }, "note": "按下前必须先移动指针", "provenance": "observed" },
+        { "name": "computer_use_drag", "params": { "button": "left|right|middle", "path": "array>=2 of {x,y}", "modifier_keys": "string[]" }, "provenance": "observed" },
+        { "name": "computer_use_typing", "params": { "value": "string" }, "provenance": "observed" },
+        { "name": "computer_use_press_key", "params": { "key": "string", "hold_duration_ms?": "int" }, "provenance": "observed" },
+        { "name": "computer_use_set_value", "params": "element_id+snapshot_id+value（推断同 companion 语义）", "provenance": "inferred" },
+        { "name": "computer_use_perform_secondary_action", "params": "元素次级 AX 动作（推断 show-menu 类）", "provenance": "inferred" },
+        { "name": "computer_use_app_state", "params": "app target（推断同 companion）", "provenance": "inferred" },
+        { "name": "computer_use_select_app", "params": "pid|bundle_id|app_path|app_name 之一；未运行则启动（不激活）", "provenance": "observed (错误文本)" },
+        { "name": "computer_use_apps_list", "params": {}, "provenance": "observed (错误文本 'running app(s)')" },
+        { "name": "computer_use_check_permissions", "params": {}, "provenance": "observed" }
+      ],
+      "control_session": {
+        "control/start": { "request": "{mode:'remote'}", "response": "{sessionId}", "errors": ["control/start requires remote mode", "Remote control is busy with another session.", "USER_ABORTED"] },
+        "control/release": { "request": "{mode, sessionId}", "note": "异常路径 best-effort 释放；释放后持有输入一并撤销（CURemoteControlPermit.releaseHeldInput）", "provenance": "observed" }
+      }
+    },
+    {
+      "id": "cloud_computer_use",
+      "exposure": "proto agent.v1 ComputerUseArgs（远程计算机上执行；桌面/手机经 noVNC 观看介入）",
+      "provenance": "observed (proto.cjs)",
+      "actions": [
+        { "action": "mouse_move", "fields": { "coordinate": "{x:int32,y:int32}" } },
+        { "action": "click", "fields": { "button": "LEFT|RIGHT|MIDDLE|BACK|FORWARD", "count": "int" } },
+        { "action": "mouse_down", "fields": { "button": "MouseButton" } },
+        { "action": "mouse_up", "fields": { "button": "MouseButton" } },
+        { "action": "drag", "fields": { "path": "Coordinate[]", "button": "MouseButton", "modifier_keys?": "string" } },
+        { "action": "scroll", "fields": { "coordinate?": "Coordinate", "direction": "UP|DOWN|LEFT|RIGHT", "amount": "int", "modifier_keys?": "string" } },
+        { "action": "type", "fields": { "text": "string" }, "note": "bind_unmapped_characters 承载 unicode 输入绑定" },
+        { "action": "key", "fields": { "key": "string", "hold_duration_ms?": "int", "stroke": "TAP|DOWN|UP" } },
+        { "action": "wait", "fields": { "duration_ms": "int" } },
+        { "action": "screenshot", "fields": {} },
+        { "action": "cursor_position", "fields": {} }
+      ],
+      "batch_envelope": { "description": "动作意图描述（用户可见）", "desktop_lease_actor_id": "云端租约执行者（本地 remoteControlLease 的云侧对应物）", "screenshot_settle_ms": "动作后截图稳定等待" },
+      "related_tools": ["record_screen(mode: START_RECORDING|SAVE_RECORDING|DISCARD_RECORDING, save_as_filename?)", "setup_vm_environment"]
+    }
+  ],
+
+  "browser_use": {
+    "verdict": "本机桌面端无本地浏览器控制工具面（负证据：browser_* 动词 0、CDP/remote-debugging-port 0、browserView 仅遥测枚举）",
+    "cloud_paths": [
+      { "path": "browser_subagent", "gate_default": true, "note": "云端浏览器子代理；工具定义在服务端，客户端仅存来源标签 cursor-browser-extension / cursor-ide-browser 与 execBrowserOperationSource 符号", "provenance": "observed flags + inferred" },
+      { "path": "hosted_mcp", "gate_default": "hosted_mcp_routing_enabled=false；browser_mcp_chip=true", "note": "第三方浏览器自动化（如 Playwright MCP）经托管 OAuth 目录接入" },
+      { "path": "box", "note": "docker cursor-box-computer/dist/mcp.js；容器 cursor-box-shared 可共享；CopyToBox/CopyFromBox 工具对；受本地工具三档权限伞约束", "provenance": "observed" },
+      { "path": "chrome_cookie_import", "note": "Finder AppleScript 拷贝 Chrome Cookies 文件 → presentCookieOriginApproval 逐 origin 审批（approve-once/always-allow/deny，默认 deny，5min 超时）→ importChromeCookies 上传；gate sand_import_chrome_cookies", "provenance": "observed" }
+    ],
+    "web_observation": ["web_search", "fetch", "web_fetch", "x_search（proto 工具位）", "sand_web_bot_auth_signing 默认开（XHR/fetch 签名；iframe 默认不签）", "sand_browser_fingerprint_spoof 默认关"],
+    "console": { "noVNC": { "rpc_edge": "box-vnc{readClipboard,writeClipboard}", "gateway": "vncProxy{primaryUrl,forkBaseUrl,networkToken}", "features": ["QEMU extended key events", "帧节流 __sandVncFrameHold", "黑帧五点采样 liveness 探针", "剪贴板回环抑制"], "mobile_gate": "sand_mobile_agent_computer_console default true" } }
+  }
+}

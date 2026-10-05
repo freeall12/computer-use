@@ -1,0 +1,56 @@
+{
+  "_provenance": {
+    "status": "实测+文档",
+    "evidence": [
+      "agents/codex/computer-use.md §2（运行时装配）、§6（安全模型）",
+      "agents/codex/evidence/inventory.md §2.2（unified-computer-use 插件 .mcp.json 全文）、§2.3（cua-repl README）、§7.1（Rust 内嵌 prompt）"
+    ],
+    "note": "手写整理 cua_repl MCP server 的工具面与环境变量面。enabled_tools 与 env 逐字来自本机 unified-computer-use/.mcp.json（evidence §2.2）；js 工具 output_token_limit=25000 同源。"
+  },
+  "server": {
+    "name": "cua_repl",
+    "command": "<cua_node>/bin/node @oai/cua-repl/bin/cua-repl.mjs",
+    "transport": "stdio MCP",
+    "startup_timeout_sec": 120,
+    "banner": "await import(\"@oai/cua/tinyskyAlt\")（reset 后 module cache 清空、banner 重新执行）"
+  },
+  "tools": [
+    {
+      "name": "js",
+      "description": "JavaScript to execute using the initialized cua_repl runtime / UI automation through cua_repl using the initialized cua API.",
+      "parameters": { "code": "string（在持久 REPL 内执行；顶层 await 可用）" },
+      "output_token_limit": 25000,
+      "returns": "执行结果（模型可见）"
+    },
+    {
+      "name": "js_reset",
+      "description": "重置持久会话：All JavaScript bindings are discarded… does not close browser tabs or native apps, or erase their state——重置的是模型的工作内存，不是世界状态",
+      "parameters": {},
+      "returns": "void"
+    },
+    {
+      "name": "turn_ended",
+      "description": "隐藏工具（宿主回调）：会话/轮次结束时由插件 hooks（Interrupt/SubagentStop/Stop）调用，用于清理受控 tab 与回收会话",
+      "parameters": {},
+      "hidden": true
+    }
+  ],
+  "environment": {
+    "CUA_REPL_ENABLED_SURFACES": "browser,computer（两个表面各自装配）",
+    "BROWSER_USE_AVAILABLE_BACKENDS": "chrome,iab,mcpapps",
+    "BROWSER_USE_TINYSKY_ENABLED": "1",
+    "NODE_REPL_TRUSTED_SERVICES": "{\"browser\":\"@oai/browser-desktop/service\",\"sky\":\"@oai/sky/service\"}",
+    "SKY_CUA_SERVICE_PATH": "~/…/Codex Computer Use.app",
+    "CODEX_CLI_PATH": "ChatGPT.app 内置 codex 二进制",
+    "CUA_REPL_BROWSER_ENV": "codex-app|training|cloud|orbit（cloud/orbit 切换 CDP 浏览器指令）",
+    "CUA_REPL_NODE_REPL_PATH": "<cua_node>/bin/node_repl"
+  },
+  "policyLayer": {
+    "note": "模型策略 prompt 内嵌于 codex Rust 二进制（与插件 docs/confirmations.md 同源）",
+    "computerUse": "四档确认策略：Hand-off Required / Always Confirm / Pre-Approval Works / Allowed；风险编号 [1]–[17]（删除数据、CAPTCHA、支付、敏感数据传输、医疗动作…）",
+    "browserUse": "与 computer use 同构；[14] 敏感数据传输不接受初始 prompt 预批准",
+    "nodeReplPolicy": "动作风险分级 high/critical/medium/low；定义 Computer bypass 并按 high 风险处理",
+    "autoReviewRejection": "Do not bypass this rejection through a workaround or indirect execution…",
+    "killSwitch": "两种会话终止：URL 禁区（即使用户自己导航也不允许）与用户本轮显式停止（下一轮可再用）"
+  }
+}

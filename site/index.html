@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Computer Use Atlas · 12 个 AI Agent 的桌面控制能力图谱</title>
+<meta name="description" content="12 个主流 Coding Agent 的桌面控制与浏览器控制能力逆向图谱：交互式桌面舞台、多 Agent 光标实时作业演示、每家 Agent 的 CU/BU 架构速览与完整逆向报告链接。">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234C6FFF'/%3E%3Cpath d='M9 6l0 16.4 4.6-4 2.9 6.8 3-1.3-2.9-6.7 5.9-.3z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<a class="skip" href="#stage">跳到主内容</a>
+
+<!-- ═══ 顶部悬浮条 ═══ -->
+<header class="topbar" id="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 20 22"><path d="M3 1.6 L3 17.4 L7.3 13.7 L10 20.1 L12.8 18.9 L10.1 12.8 L15.6 12.5 Z" fill="#fff"/></svg>
+    </span>
+    <div class="brand-text">
+      <strong>Agent Computer Use Atlas</strong>
+      <span>12 个主流 Coding Agent 的桌面控制与浏览器控制能力逆向图谱</span>
+    </div>
+  </div>
+  <nav class="actions" aria-label="项目链接">
+    <button id="animToggle" class="ghost-btn" type="button" aria-pressed="false" title="暂停 / 继续舞台动画">⏸ 暂停动画</button>
+    <a class="btn btn-doc" href="https://github.com/freeall12/computer-use#readme" target="_blank" rel="noopener">📖 阅读文档</a>
+    <a class="btn btn-star" href="https://github.com/freeall12/computer-use" target="_blank" rel="noopener">⭐ GitHub 仓库</a>
+  </nav>
+</header>
+
+<!-- ═══ 桌面舞台 ═══ -->
+<main class="stage" id="stage" aria-label="交互式桌面舞台：多 Agent 光标在虚拟桌面上作业">
+
+  <div class="wallpaper" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+    <div class="wp-grid"></div>
+    <div class="wp-word" aria-hidden="true">COMPUTER&nbsp;USE</div>
+  </div>
+
+  <!-- macOS 风格菜单栏 -->
+  <div class="menubar" aria-hidden="true">
+    <div class="mb-left">
+      <svg class="mb-logo" viewBox="0 0 14 14"><path d="M7 0 L8.7 5.3 L14 7 L8.7 8.7 L7 14 L5.3 8.7 L0 7 L5.3 5.3 Z" fill="#dfe6ff"/></svg>
+      <span class="mb-strong">Atlas</span>
+      <span>文件</span><span>编辑</span><span>显示</span><span>前往</span><span>窗口</span><span>帮助</span>
+    </div>
+    <div class="mb-right">
+      <span class="mb-agents">12 Agents · live</span>
+      <svg class="mb-ic" viewBox="0 0 16 12"><path d="M1.6 4.3a10 10 0 0 1 12.8 0M3.9 6.8a6.4 6.4 0 0 1 8.2 0M6.2 9.2a2.9 2.9 0 0 1 3.6 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/></svg>
+      <svg class="mb-ic" viewBox="0 0 25 12"><rect x="0.7" y="0.9" width="20.4" height="10.2" rx="3" fill="none" stroke="currentColor" opacity=".45"/><rect x="2.5" y="2.7" width="13.6" height="6.6" rx="1.6" fill="currentColor"/><path d="M22.9 3.9v4.2a2.2 2.2 0 0 0 0-4.2Z" fill="currentColor" opacity=".45"/></svg>
+      <span id="mbTime">--:--</span>
+    </div>
+  </div>
+
+  <!-- 桌面图标（引流触点） -->
+  <div class="desk-icons">
+    <a class="d-icon" href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener" title="打开 12 份逆向报告">
+      <svg viewBox="0 0 52 42" aria-hidden="true"><path d="M3 8a4 4 0 0 1 4-4h12l5 5h21a4 4 0 0 1 4 4v6H3Z" fill="#3c63d8"/><path d="M3 14h46a3 3 0 0 1 3 3l-3.4 18a4 4 0 0 1-4 3.4H7.4A4 4 0 0 1 3.4 35L0 17a3 3 0 0 1 3-3Z" fill="#5b8cff"/><path d="M14 22h24M14 27h18" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>逆向报告 ×12</span>
+    </a>
+    <a class="d-icon" href="https://github.com/freeall12/computer-use/tree/main/source" target="_blank" rel="noopener" title="打开可运行参考实现">
+      <svg viewBox="0 0 52 42" aria-hidden="true"><path d="M3 8a4 4 0 0 1 4-4h12l5 5h21a4 4 0 0 1 4 4v6H3Z" fill="#0f766e"/><path d="M3 14h46a3 3 0 0 1 3 3l-3.4 18a4 4 0 0 1-4 3.4H7.4A4 4 0 0 1 3.4 35L0 17a3 3 0 0 1 3-3Z" fill="#21c4b5"/><path d="M20 21l-5 5 5 5M32 21l5 5-5 5" stroke="rgba(6,32,30,.75)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <span>源码</span>
+    </a>
+  </div>
+
+  <!-- 窗口 a：终端 -->
+  <section class="window win-term" id="win-term" aria-label="终端演示窗口">
+    <div class="win-bar"><span class="dots"><i class="d-r"></i><i class="d-y"></i><i class="d-g"></i></span><span class="win-title">agent — zsh — 80×24</span><span class="win-spacer"></span></div>
+    <div class="term-body" id="term-body"><div id="term-lines"></div></div>
+  </section>
+
+  <!-- 窗口 b：浏览器 -->
+  <section class="window win-browser" id="win-browser" aria-label="浏览器演示窗口">
+    <div class="win-bar"><span class="dots"><i class="d-r"></i><i class="d-y"></i><i class="d-g"></i></span><span class="win-title">Atlas Browser</span><span class="win-spacer"></span></div>
+    <div class="br-chrome"><span class="br-tab">Computer Use 图谱</span></div>
+    <div class="br-urlbar">
+      <span class="br-url" id="br-url">
+        <svg viewBox="0 0 10 12" class="br-lock" aria-hidden="true"><rect x="1" y="5" width="8" height="6" rx="1.5" fill="#34d399"/><path d="M3 5V3.6a2 2 0 0 1 4 0V5" fill="none" stroke="#34d399" stroke-width="1.4"/></svg>
+        <span class="mono">atlas.dev/computer-use</span>
+      </span>
+    </div>
+    <div class="br-page">
+      <h3>CU / BU 能力速查</h3>
+      <div class="br-actions">
+        <button class="bbtn primary" id="br-btn-run" type="button">运行搜索</button>
+        <button class="bbtn" id="br-btn-more" type="button">加载更多</button>
+      </div>
+      <div class="br-results" id="br-results">
+        <div class="skel" aria-hidden="true"><i></i><i></i><i></i></div>
+        <ul class="rows">
+          <li><b>ZCode</b> · 14 CU 工具 · 自研 Helper</li>
+          <li><b>Codex</b> · js REPL 三工具 · 四后端</li>
+          <li><b>Claude Code</b> · ~40 工具 · 三控制域</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 窗口 c：备忘录 / 虚拟键盘 -->
+  <section class="window win-notes" id="win-notes" aria-label="备忘录演示窗口">
+    <div class="win-bar"><span class="dots"><i class="d-r"></i><i class="d-y"></i><i class="d-g"></i></span><span class="win-title">备忘录</span><span class="win-spacer"></span></div>
+    <div class="nt-body">
+      <div class="nt-label">部署备注</div>
+      <div class="nt-line" id="note-input"><span id="note-text"></span><span class="nt-caret" aria-hidden="true"></span></div>
+      <div class="kb" id="note-kb" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- 窗口 d：频谱 / 滑块 -->
+  <section class="window win-music" id="win-music" aria-label="频谱演示窗口">
+    <div class="win-bar"><span class="dots"><i class="d-r"></i><i class="d-y"></i><i class="d-g"></i></span><span class="win-title">频谱 · Agent Ops</span><span class="win-spacer"></span></div>
+    <div class="mu-body">
+      <div class="mu-head">
+        <button class="mu-play" id="mu-play" type="button" aria-label="播放 / 暂停">
+          <svg class="i-play" viewBox="0 0 10 12"><path d="M1.5 1.2v9.6L9 6Z" fill="currentColor"/></svg>
+          <svg class="i-pause" viewBox="0 0 10 12"><path d="M1.5 1.5h2.6v9H1.5ZM5.9 1.5h2.6v9H5.9Z" fill="currentColor"/></svg>
+        </button>
+        <div class="mu-meta"><strong>Atlas Groove</strong><span>12 agents · live</span></div>
+      </div>
+      <div class="bars" id="mu-bars" aria-hidden="true"></div>
+      <div class="mu-slider-row">
+        <span class="mu-lab">强度</span>
+        <div class="mu-track" id="mu-slider"><div class="mu-fill"></div><div class="mu-thumb"></div></div>
+        <span class="mu-val mono" id="mu-val">05</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 特效层 / 光标层 / 提示 -->
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <div class="cursors" id="cursors"></div>
+  <div class="hint" id="hint">点击任意光标 · 查看该 Agent 的逆向档案</div>
+
+  <!-- 窄屏降级：Agent 卡片列表 -->
+  <div class="agents-grid" id="agentsGrid" aria-label="12 个 Agent 列表"></div>
+</main>
+
+<!-- ═══ 遮罩 + 详情面板 ═══ -->
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" role="dialog" aria-label="Agent 逆向档案" aria-hidden="true">
+  <button class="p-close" id="pClose" type="button" aria-label="关闭面板"><svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  <header class="p-head">
+    <span class="p-mono" id="pMono">--</span>
+    <div class="p-head-t">
+      <h2 id="pName">Agent</h2>
+      <p id="pVendor">vendor</p>
+    </div>
+  </header>
+  <div class="p-tool mono" id="pTool">$ toolcall</div>
+  <dl class="p-rows">
+    <div><dt>CU · 桌面控制</dt><dd id="pCu"></dd></div>
+    <div><dt>BU · 浏览器控制</dt><dd id="pBu"></dd></div>
+  </dl>
+  <div class="p-chips" id="pChips"></div>
+  <blockquote class="p-take" id="pTake"></blockquote>
+  <div class="p-links">
+    <a class="btn btn-star" id="pLinkReadme" href="#" target="_blank" rel="noopener">完整逆向 →</a>
+    <a class="btn btn-doc" id="pLinkSource" href="#" target="_blank" rel="noopener">源码 →</a>
+  </div>
+</aside>
+
+<!-- ═══ 底部条 ═══ -->
+<footer class="bottombar">
+  <p class="f-disclaimer">本站为独立研究演示页，与所列各厂商均无关联；产品名称与商标归其各自所有者。页面中的桌面、窗口与光标均为动画演示，非真实软件界面。</p>
+  <div class="f-right">
+    <span class="f-powered">Powered by <a href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener">12 份逆向分册</a> · <a href="https://github.com/freeall12/computer-use/tree/main/reusable" target="_blank" rel="noopener">16 个可复用设计模式</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source" target="_blank" rel="noopener">可运行参考实现</a></span>
+    <a class="f-repo mono" href="https://github.com/freeall12/computer-use" target="_blank" rel="noopener">github.com/freeall12/computer-use</a>
+  </div>
+</footer>
+
+<!-- 内联数据回退（与 data/agents.json 同源，保证 file:// 直开可用） -->
+<script type="application/json" id="agents-data">[
+  {
+    "slug": "zcode",
+    "name": "ZCode",
+    "vendor": "智谱",
+    "color": "#4C6FFF",
+    "monogram": "ZC",
+    "cu": "14 工具 · ax_native Helper（AX+CGEvent）",
+    "bu": "内嵌 WebView · 单一 js 工具动态面",
+    "chips": [
+      { "label": "CU 工具", "value": "14" },
+      { "label": "机制", "value": "AX+CGEvent" },
+      { "label": "对齐", "value": "逐字对齐 Codex" },
+      { "label": "防重放", "value": "自研" }
+    ],
+    "takeaway": "安全加固最重的自研派",
+    "toolcall": "get_app_state({name:\"Notes\"})",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/zcode"
+    }
+  },
+  {
+    "slug": "codex",
+    "name": "Codex",
+    "vendor": "OpenAI",
+    "color": "#10A37F",
+    "monogram": "CX",
+    "cu": "@oai/cua + Swift Sky 服务 · js REPL 三工具",
+    "bu": "iab · 扩展 · 云 · mcpapps 四后端",
+    "chips": [
+      { "label": "服务", "value": "JSON-RPC" },
+      { "label": "原子性", "value": "Skyshot 原子" },
+      { "label": "守护", "value": "锁屏守护" },
+      { "label": "后端", "value": "4 种" }
+    ],
+    "takeaway": "一个 REPL 全包的极简派",
+    "toolcall": "cua.getApp(\"Notes\")",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/codex"
+    }
+  },
+  {
+    "slug": "claude-code",
+    "name": "Claude Code",
+    "vendor": "Anthropic",
+    "color": "#D97757",
+    "monogram": "CC",
+    "cu": "~40 工具 · 三控制域 · Swift+Rust 双层",
+    "bu": "Chrome 扩展 + native messaging",
+    "chips": [
+      { "label": "CU 工具", "value": "~40" },
+      { "label": "权限", "value": "tier 权限" },
+      { "label": "教学", "value": "teach mode" },
+      { "label": "并发", "value": "独占锁" }
+    ],
+    "takeaway": "工具面拆得最细",
+    "toolcall": "mcp__computer-use__screenshot",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/claude-code"
+    }
+  },
+  {
+    "slug": "cursor",
+    "name": "Cursor",
+    "vendor": "Anysphere",
+    "color": "#FFBD5A",
+    "monogram": "CU",
+    "cu": "MCP provider · 16 工具 · Swift sidecar",
+    "bu": "内嵌 webview 合成 DOM 事件",
+    "chips": [
+      { "label": "CU 工具", "value": "16" },
+      { "label": "引用", "value": "data-cursor-ref" },
+      { "label": "CDP", "value": "拒绝列表" },
+      { "label": "门控", "value": "门控未开" }
+    ],
+    "takeaway": "白牌代工的源头（Grok Bot 即其变体）",
+    "toolcall": "browser_snapshot()",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/cursor"
+    }
+  },
+  {
+    "slug": "minimax-code",
+    "name": "MiniMax Code",
+    "vendor": "MiniMax",
+    "color": "#FF6A00",
+    "monogram": "MM",
+    "cu": "trycua cua-driver 0.22.1 · 17 工具",
+    "bu": "WebContentsView + CDP · 24 action",
+    "chips": [
+      { "label": "CU 工具", "value": "17" },
+      { "label": "底座", "value": "开源 cua-driver" },
+      { "label": "并发", "value": "generation fencing" },
+      { "label": "JS", "value": "无任意 JS" }
+    ],
+    "takeaway": "开源驱动+协议兼容的务实派",
+    "toolcall": "computer_click(element_token)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/minimax-code"
+    }
+  },
+  {
+    "slug": "synara",
+    "name": "Synara",
+    "vendor": "独立开发者",
+    "color": "#8B5CF6",
+    "monogram": "SY",
+    "cu": "cua-driver 0.28.2 patched · 33 工具",
+    "bu": "面板 CDP + cua CDP + cookie 导入",
+    "chips": [
+      { "label": "CU 工具", "value": "33" },
+      { "label": "授权", "value": "前台意图授权" },
+      { "label": "急停", "value": "Escape 急停" },
+      { "label": "安全", "value": "最重安全" }
+    ],
+    "takeaway": "安全工程最“社会工程”",
+    "toolcall": "computer:control 授权",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/synara"
+    }
+  },
+  {
+    "slug": "kimi-code",
+    "name": "Kimi Code",
+    "vendor": "月之暗面",
+    "color": "#21C4B5",
+    "monogram": "KC",
+    "cu": "KimiCU.app 常驻 · SkyLight+SLS 签名事件",
+    "bu": "webbridge 扩展 + 内嵌 43 操作",
+    "chips": [
+      { "label": "操作面", "value": "内嵌 43 操作" },
+      { "label": "焦点", "value": "never-front 后台" },
+      { "label": "校验", "value": "verify_after 三态" }
+    ],
+    "takeaway": "后台不抢焦点的代表",
+    "toolcall": "verify_after → verified",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/kimi-code"
+    }
+  },
+  {
+    "slug": "qoder",
+    "name": "Qoder",
+    "vendor": "阿里巴巴",
+    "color": "#6C5CE7",
+    "monogram": "QO",
+    "cu": "自研 Swift Runtime · UDS+token 注册表",
+    "bu": "16 工具钉死 chrome-devtools-mcp 基线",
+    "chips": [
+      { "label": "内核", "value": "qwen-code 内核" },
+      { "label": "BU 工具", "value": "16" },
+      { "label": "审批", "value": "per-app 审批" },
+      { "label": "录制", "value": "Record&Replay" }
+    ],
+    "takeaway": "内核确证迁自 qwen-code",
+    "toolcall": "open -g 懒拉起 + 握手",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/qoder"
+    }
+  },
+  {
+    "slug": "grok",
+    "name": "Grok Bot",
+    "vendor": "xAI",
+    "color": "#B0B6BD",
+    "monogram": "GB",
+    "cu": "16 工具 catalog 内嵌 · Swift Helper",
+    "bu": "云端 browser_subagent + cookie 审批导入",
+    "chips": [
+      { "label": "CU 工具", "value": "16" },
+      { "label": "代工", "value": "Cursor 代工" },
+      { "label": "协议", "value": "错误即指令" }
+    ],
+    "takeaway": "白牌供应链实锤（TeamID 同 Cursor）",
+    "toolcall": "computer_use_click(ref)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/grok"
+    }
+  },
+  {
+    "slug": "devin",
+    "name": "Devin",
+    "vendor": "Cognition",
+    "color": "#E75480",
+    "monogram": "DV",
+    "cu": "云 VM computer · 1024×768 循环",
+    "bu": "云 Interactive Browser · CDP :29229",
+    "chips": [
+      { "label": "执行", "value": "全云端" },
+      { "label": "本地", "value": "零 GUI" },
+      { "label": "分辨率", "value": "1024×768" },
+      { "label": "接入", "value": "ACP 投影" }
+    ],
+    "takeaway": "云端执行的基线样本",
+    "toolcall": "cloud VM · browser_preview",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/devin"
+    }
+  },
+  {
+    "slug": "goose",
+    "name": "Goose",
+    "vendor": "Block",
+    "color": "#FFDE59",
+    "monogram": "GO",
+    "cu": "computer_control 纯透传 Peekaboo CLI",
+    "bu": "零内置 · 五个 MCP 外挂",
+    "chips": [
+      { "label": "执行", "value": "外包 Peekaboo" },
+      { "label": "BU 内置", "value": "零" },
+      { "label": "协议", "value": "Apache-2.0" },
+      { "label": "标注", "value": "AX 叠加标注" }
+    ],
+    "takeaway": "执行层完全外包的唯一样本",
+    "toolcall": "computer_control(\"see --annotate\")",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/goose"
+    }
+  },
+  {
+    "slug": "mimo",
+    "name": "MiMo",
+    "vendor": "小米",
+    "color": "#FF4900",
+    "monogram": "MI",
+    "cu": "自研 sky-mac · js REPL 门面 · 锁屏操作",
+    "bu": "MV3 扩展 + chrome.debugger CDP",
+    "chips": [
+      { "label": "复刻", "value": "Codex 清洁室" },
+      { "label": "锁屏", "value": "支持操作" },
+      { "label": "安全", "value": "SecurityAgentPlugins" }
+    ],
+    "takeaway": "对标 Codex 最明示的复刻",
+    "toolcall": "js: @mimo/sky.click()",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/mimo"
+    }
+  }
+]
+</script>
+<script src="assets/app.js"></script>
+</body>
+</html>

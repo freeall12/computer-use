@@ -1,0 +1,133 @@
+{
+  "_provenance": {
+    "status": "实测（asar 解包静态逆向）",
+    "evidence": [
+      "agents/synara/computer-use.md §3（宿主工具面全集：CUA_READ_TOOLS 14 项 / CUA_ACTION_TOOLS 18 项 / LLM 侧 13 读 + 20 变更）",
+      "agents/synara/evidence/inventory.md B5/B15（main.js:233-307 Set 字面量、index.mjs:19635-19656 COMPUTER_APPROVAL_REQUIRED_TOOLS）"
+    ],
+    "original_path": "/tmp/synara-analysis/app/apps/desktop/dist-electron/main.js（宿主原生工具名）+ app/apps/server/dist/index.mjs（LLM 网关工具名与批准集合）",
+    "confidence": "工具名清单与批准集合=高（Set 字面量直接可读）；单个工具参数 schema 未逐项还原=中",
+    "notes": "宿主原生名与 LLM 网关名两套并存：宿主名喂给 cua-driver，网关名（computer_ 前缀）暴露给模型；deliveryMode 是宿主信封元数据，模型不可指定"
+  },
+  "read_tools": {
+    "approval_required": false,
+    "gateway_names": [
+      "computer_get_state",
+      "computer_list_windows",
+      "computer_list_apps",
+      "computer_screenshot",
+      "computer_get_screen_size",
+      "computer_get_accessibility_tree",
+      "computer_get_cursor_position",
+      "computer_verify_state",
+      "computer_wait",
+      "computer_zoom",
+      "computer_spaces",
+      "computer_inspect",
+      "computer_help"
+    ],
+    "driver_names_14": [
+      "check_permissions",
+      "check_input_ready",
+      "list_windows",
+      "list_spaces",
+      "list_apps",
+      "get_window_state",
+      "get_screen_size",
+      "get_desktop_state",
+      "get_accessibility_tree",
+      "get_agent_cursor_state",
+      "get_cursor_position",
+      "verify_state",
+      "wait_for_settle",
+      "zoom"
+    ],
+    "note": "读侧网关 13 项与驱动 14 项的对应由宿主映射；computer_read_clipboard 归入审计读（唯一能读出隐私载荷的读工具，批准类工具调用一并入审计日志）"
+  },
+  "mutation_tools": {
+    "approval_required": true,
+    "gateway_names_20": [
+      "computer_click",
+      "computer_move_cursor",
+      "computer_drag",
+      "computer_scroll",
+      "computer_type_text",
+      "computer_press_key",
+      "computer_paste",
+      "computer_perform_action",
+      "computer_select_text",
+      "computer_set_value",
+      "computer_read_clipboard",
+      "computer_write_clipboard",
+      "computer_run",
+      "computer_launch_app",
+      "computer_activate_window",
+      "computer_set_window_frame",
+      "computer_invoke_menu",
+      "computer_kill_app",
+      "computer_set_window_minimized",
+      "computer_set_app_visibility"
+    ],
+    "driver_names_18": [
+      "click",
+      "move_cursor",
+      "drag",
+      "scroll",
+      "type_text",
+      "press_key",
+      "hotkey",
+      "set_value",
+      "select_text",
+      "clipboard_read",
+      "clipboard_write",
+      "launch_app",
+      "bring_to_front",
+      "invoke_menu",
+      "set_window_frame",
+      "set_window_minimized",
+      "set_app_visibility",
+      "kill_app"
+    ],
+    "uncancellable_window_tools": [
+      "launch_app",
+      "bring_to_front",
+      "set_window_frame",
+      "invoke_menu"
+    ],
+    "uncancellable_semantic": "输入中断/暂停期间拒绝派发，避免『停不下来的窗口操作』"
+  },
+  "delivery_mode": {
+    "foreground": "真实 CGEvent 键鼠（占用系统光标/键盘）；type_text 前台模式不支持部分字符；点击前 marker 渲染 + 帧比对确认落点",
+    "background": "Accessibility 通路（AXPress / 语义 set_value / select_text），不抢焦点不打扰人",
+    "host_metadata_rule": "deliveryMode is trusted host-envelope metadata from the server's existing visible-use authorizer, never a native argument or a model-supplied override（模型无法自行声明前台模式）"
+  },
+  "epoch_semantics": "每次原生输入派发推进 nativeInputEpoch；人接管或暂停后 epoch 变化，旧在途结果按『已派发-效果未知』上报",
+  "transport": {
+    "spawn": "cua-driver serve --embedded --socket <dir>/driver-<uuid>.sock [--compact-cursor --idle-hide-ms <ms>]（patched 版才追加光标参数）",
+    "env": [
+      "CUA_DRIVER_EMBEDDED=1",
+      "CUA_DRIVER_HOST_BUNDLE_ID=com.emanueledipietro.synara",
+      "CUA_DRIVER_PERMISSION_MODE=standard",
+      "CUA_DRIVER_RS_TELEMETRY_ENABLED=0",
+      "CUA_DRIVER_RS_UPDATE_CHECK=0",
+      "CUA_DRIVER_PARENT_LIVENESS_STDIN=1",
+      "CUA_DRIVER_EMBEDDED_HOST_PID=<主进程 pid>",
+      "SYNARA_CUA_FOREGROUND_OBSERVATION_MS=100",
+      "SYNARA_CUA_BACKGROUND_OBSERVATION_MS=350"
+    ],
+    "request_shape": "{method:'call', name, args, modelObservation, deliveryMode, task}",
+    "handshake": "启动时 metadata 握手校验 synara_native_revision（80 次重试），版本不符拒绝使用",
+    "orphan_reap": "主进程启动扫描进程表，命令行匹配 cua-driver serve --embedded 且 CUA_DRIVER_EMBEDDED_HOST_PID 已死的一律 kill",
+    "windows_transport": "命名管道 \\\\.\\pipe\\synara-cua-driver-*"
+  },
+  "activation_shield_protocol": {
+    "method": "shield",
+    "actions": [
+      "engage",
+      "release",
+      "release_all"
+    ],
+    "payload": "frame + window_id + pid（几何校验，CUA_SHIELD_ID_PATTERN）",
+    "ownership": "panel 由 helper 进程持有（the helper owns the panels）；engage 受准入门控（桌面暂停时拒绝）"
+  }
+}

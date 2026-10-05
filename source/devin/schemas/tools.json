@@ -1,0 +1,239 @@
+{
+  "_provenance": {
+    "status": "静态取证+官方文档",
+    "baseline": {
+      "cli": "Devin CLI 'chisel' 3000.6.19 commit e2b252e2（本机日志实测，2026-09-16）",
+      "desktop": "Devin Desktop（=Windsurf 更名）IDE 3.2.23 / exa extension 1.48.2（本机第三方参考实现 oh-my-pi 常量）",
+      "docs": "docs.devin.ai 全站快照，抓取日 2026-10-06",
+      "local_artifacts": "~/.config/devin、~/.local/share/devin、~/.cache/devin（2026-09-11 初始化，app 已卸载）"
+    },
+    "evidence": [
+      "agents/devin/computer-use.md §2/§4（云端 computer 工具、CLI 三重负证据）",
+      "agents/devin/browser-use.md §2-§4（Interactive Browser、CDP 29229、ACP 能力位、browser_preview_pb）",
+      "agents/devin/evidence/inventory.md C/D/E/F 全表（日志行、缓存解码、proto、端点）"
+    ],
+    "note": "手写整理的 Devin 工具面规范化 JSON。分四个 surface：CLI 本地工具（负证据面）、云会话工具（文档口径）、Desktop 预览通道（proto 转录，仅形状非原文）、ACP 扩展（日志实测）。字段级来源见各 surface 的 source 键；未证实处一律标 inference。不含任何专有代码文本。"
+  },
+  "coreVerdict": {
+    "execution": "cloud-only",
+    "summary": "Devin 的 computer use 与 browser use 执行面全部在云会话 VM / Outposts 内；本地 CLI 与 Desktop 均无原生 GUI 控制工具，本地仅存在代理（--cloud/ssh/forward）、预览（ACP browser_preview / Desktop Previews）与接管（会话 UI 同屏）三类投影。"
+  },
+  "surfaces": {
+    "cli_local_tools": {
+      "source": "docs.devin.ai/cli/reference/permissions.md（工具匹配器）+ 本机日志模块清单（负证据）",
+      "builtinToolMatchers": ["read", "edit", "grep", "glob", "exec"],
+      "planProfileExtraTools": ["exit_plan_mode"],
+      "mcpPassthrough": {
+        "matcherShapes": ["mcp__server__tool", "mcp__server__*", "mcp__*"],
+        "transports": ["stdio", "http"],
+        "auth": "OAuth（devin mcp login/logout；token 存 ~/.local/share/devin/mcp/oauth/，本机为空目录）",
+        "configCommands": ["devin mcp add|list|get|remove|login|logout|enable|disable"]
+      },
+      "negativeEvidence": {
+        "noComputerOrBrowserTools": true,
+        "basis": [
+          "权限文档内置匹配器无 computer_*/browser_* 类",
+          "docs.devin.ai 站点地图 computer-use/browser 页仅在 Cloud 分区",
+          "本机 3 天运行日志内部模块仅 toolbox::tools::exec 与 toolbox::tools::mcp"
+        ]
+      },
+      "execDetail": {
+        "loginShellEnvSnapshot": "起 shell 前捕获登录 shell 环境（日志 toolbox::tools::exec::login_shell_env，本机实测 var_count=47）",
+        "sandbox": "可选 --sandbox（见 sandboxConfig）"
+      }
+    },
+    "cloud_session_tools": {
+      "source": "docs.devin.ai/work-with-devin/{computer-use,devin-session-tools,browser-auth}.md（2026-10-06 抓取）",
+      "computer": {
+        "availability": "每个 desktop-mode 会话自带；组织级 'Computer use' toggle（admin only）启用",
+        "observation": "截图-动作循环；固定 1024×768 显示",
+        "actions": ["click", "type", "scroll", "keyboard shortcuts", "drag"],
+        "platforms": {
+          "linux": "默认全桌面",
+          "windows": "全桌面（WPF/WinForms 可测）",
+          "macos": "全桌面含 iOS Simulator；合成输入需 Accessibility TCC，截屏需 Screen Recording；快捷键用 ⌘",
+          "outposts": "Linux 需 DISPLAY 指向 X server（可 Xvfb）；macOS 复用既有会话；Windows 既有交互桌面+自装 Chrome"
+        },
+        "humanTakeover": "会话 UI 'Browser' 标签启用 CU 后改名 'Computer'，人机同屏（SSO/MFA/CAPTCHA）",
+        "perActionApproval": "无（设计上以组织开关+会话接管替代）"
+      },
+      "interactiveBrowser": {
+        "uiTab": "Browser（CU 启用后为 Computer）",
+        "statePersistence": "cookies/session 会话内持久；可存入 org blueprint 恢复",
+        "cdpEndpoint": "http://localhost:29229（会话内固定端口，desktop mode 开关均开放；Playwright connect_over_cdp）",
+        "playwrightAttach": "官方支持；脚本退出后浏览器状态保留"
+      },
+      "save_browser_profile": {
+        "kind": "tool",
+        "permission": "Manage Org Blueprints",
+        "behavior": "zip 浏览器数据目录（cookies、localStorage 等 Chrome profile 数据）→ org blueprint initialize 步骤（批准后生效）；恢复解压到 /home/ubuntu/.browser_data_dir（经 $FILE_BROWSER_PROFILE）",
+        "limits": ["≤200MB", "Chrome 密码库与缓存排除", "不恢复扩展", "org 级共享"],
+        "inference": []
+      },
+      "shell": "会话内全量命令行（只读↔可写切换）",
+      "devinIde": "会话内 VS Code 环境（只读↔可写切换）",
+      "sideChats": "只读问答面板（/btw），不可编辑/执行",
+      "progress": "shell/编辑/浏览器活动统一日志"
+    },
+    "desktop_cascade_preview": {
+      "source": "docs.devin.ai/_llms/en/desktop.md（Previews 描述）+ exa.browser_preview_pb proto 形状（本机第三方开源参考实现转录）",
+      "product": "Devin Desktop Previews：'element selection, error capture, and direct integration with the agent'",
+      "grpcService": {
+        "package": "exa.browser_preview_pb",
+        "service": "BrowserPreviewService",
+        "rpcs": [
+          { "name": "SendDOMElement", "requestField": "dom_element: exa.codeium_common_pb.DOMElementScopeItem" },
+          { "name": "SendScreenshot", "requestField": "image: exa.codeium_common_pb.ImageData" },
+          { "name": "SendConsoleOutput", "requestField": "console_log: exa.codeium_common_pb.ConsoleLogScopeItem" }
+        ],
+        "semantics": "IDE 内嵌预览页 → 模型上下文的三类回灌信号（选中元素/截图/console），无反向驱动 RPC —— 是预览回灌通道，不是浏览器自动化",
+        "note": "本机无 Devin Desktop 二进制，proto 形状转录自本机开源参考实现（oh-my-pi），属第三方独立取证"
+      },
+      "relatedFlags": [
+        "cascade-windsurf-browser-control",
+        "CASCADE_WINDSURF_BROWSER_TOOLS_ENABLED",
+        "windsurf-browser-remote-debugging-port",
+        "windsurf-browser-screenshot-tracking",
+        "windsurf-browser-webdev-tracking",
+        "browser-interactions-num-implicit-steps",
+        "implicit-uses-open-browser-url"
+      ]
+    },
+    "acp_extension": {
+      "source": "本机 CLI 日志 ACP initialize/ext_method 行（三份一致，实测）+ agentclientprotocol.com/protocol/v1/extensibility",
+      "transport": "stdio（chisel_server::acp）",
+      "authModel": "ACP host is the sole source of credentials；宿主调 authenticate（method_id=windsurf-api-key，meta: api_key+api_server_url），本地凭据弃用",
+      "clientCapabilitiesObserved": {
+        "terminal": false, "terminal_auth": false, "fs.read": true, "fs.write": true,
+        "subagents": true, "elicitation": true, "partial_content": true, "multi_root": true,
+        "grouped_options": true, "windsurf_config": true, "message_grouping": true,
+        "raw_ref_tags": true, "revert": true, "wiki": false, "request_diagnostics": true,
+        "editor_context": true, "terminal_context": false, "mcp": true, "plugins": true,
+        "fast_context": true, "subagent_control": true, "workspace_dir_commands": false,
+        "chains": false, "browser_preview": true, "browser_preview_open": true,
+        "clipboard_write": false
+      },
+      "browserPreviewCapability": {
+        "bits": ["browser_preview", "browser_preview_open"],
+        "methodNames": "未公开（标准 ACP 仅有 extMethod/extNotification 机制；推断在 cognition.ai/ 命名空间下，未证实）",
+        "confidence": "capability 位=直接证据；方法名=推断"
+      },
+      "cognitionExtMethodsObserved": [
+        "cognition.ai/document/didOpen",
+        "cognition.ai/document/didFocus",
+        "cognition.ai/skills/list",
+        "cognition.ai/mcp/listServers",
+        "cognition.ai/rules/list"
+      ],
+      "standardMethodsObserved": ["initialize", "authenticate", "session/new", "session/list", "ext_method", "ext_notification"]
+    }
+  },
+  "permissionModel": {
+    "source": "docs.devin.ai/cli/reference/{permissions,sandbox}.md",
+    "matchers": {
+      "Read": "glob（~ 展开；Read(**) 相对 cwd，Read(/**) 全量）",
+      "Write": "glob（决定沙箱可写面，可动态扩张）",
+      "Exec": "完整词前缀（Exec(git) 匹配 git status 不匹配 gitk）",
+      "Fetch": "WHATWG URLPattern 或 domain: 简写"
+    },
+    "resolution": "同级 deny→ask→allow→default(prompt)；跨层更严者胜；org deny/ask 不可被项目/用户配置覆盖",
+    "modes": ["normal(auto)", "accept-edits", "smart", "dangerous(yolo,bypass)", "autonomous（仅此模式可配 --sandbox）"],
+    "smartModeNeverAutoApproves": ["包安装", "变更型 git", "rm/sudo", "破坏性云操作", "涉密文件（secrets/dotenv/config）"],
+    "configPrecedence": ["org/team 设置", "会话级授权", ".devin/config.local.json", ".devin/config.json", "~/.config/devin/config.json"],
+    "promptPersistence": ["once", "session", "project", "project-local", "global"]
+  },
+  "sandboxConfig": {
+    "source": "docs.devin.ai/cli/sandbox.md",
+    "flag": "--sandbox",
+    "failClosed": "解析失败拒绝启动（绝不无沙箱运行）；Windows 不支持（含 ACP server 形态，硬失败）；Linux 需 bwrap+socat；macOS 用 Seatbelt（devin sandbox setup 查前置）",
+    "writable": "Write(...) 授权范围 + 工作区目录；Write 授权可动态扩张",
+    "readable": "除 Read(...) deny 路径外全部（deny 路径对沙箱内命令完全隐藏）",
+    "network": {
+      "transport": "本地 loopback 托管代理，子进程流量强制过代理",
+      "allowed_domains": { "default": [], "semantics": "非空即白名单模式；example.com 精确 / *.example.com 子域 / **.example.com 含 apex" },
+      "denied_domains": { "default": [], "semantics": "恒拒，deny 胜 allow" },
+      "network_mode": { "default": "full", "values": ["full（全部 HTTP 方法）", "limited（仅 GET/HEAD/OPTIONS）"] }
+    },
+    "excluded": {
+      "ruleSyntax": "Exec(...) 规则：excluded.allow / excluded.ask / excluded.deny",
+      "resolution": "同源最具体规则胜；跨源 deny>ask>allow；不可解析命令留沙箱；PTY shell 恒在沙箱内"
+    },
+    "enterprise": ["Optional（默认）", "Required（强制 --sandbox）", "Strict（规划中）；企业域名白名单权威、黑名单叠加"]
+  },
+  "cloudSessionApi": {
+    "source": "docs.devin.ai/_llms/en/api.md（索引）+ 本机 devin_deployment 缓存解码",
+    "baseUrl": "https://api.devin.ai",
+    "generations": {
+      "v3": ["org sessions: list/create/get/messages/send-message(自动恢复挂起会话)/terminate/archive/tags/insights", "attachments: upload/download", "secrets: org 级 list/create/delete", "enterprise 等价端点"],
+      "v1_legacy": ["create-a-new-devin-session", "upload-files-for-devin-to-work-with", "download-attachment-files", "secrets"]
+    },
+    "auth": "Personal Access Token / principals（api-reference/authentication）",
+    "cliDeploymentCache": { "webapp_host": null, "api_url": "https://api.devin.ai" },
+    "note": "精确路径与字段以官方 OpenAPI（/v3-openapi.yaml 等）为准；本表只记录端点族形态"
+  },
+  "modelGateway": {
+    "source": "本机第三方开源参考实现（oh-my-pi）+ 本机 model_configs_v5 缓存解码",
+    "baseUrl": "https://server.codeium.com",
+    "protocol": "Connect-RPC over HTTP/1.1（application/connect+proto），5 字节帧头：flag(1B)+len(4B BE)，flag 0x01=gzip、0x02=end-of-stream JSON trailers；客户端帧上限 16MiB（参考实现防御值）",
+    "endpoints": [
+      "POST /exa.auth_pb.AuthService/GetUserJwt",
+      "POST /exa.api_server_pb.ApiServerService/GetChatMessage（流式）",
+      "POST /exa.api_server_pb.ApiServerService/GetCliModelConfigs"
+    ],
+    "metadata": {
+      "apiKeyShape": "devin-session-token$<…>",
+      "ideName": "windsurf",
+      "ideVersion": "3.2.23",
+      "extensionName": "windsurf",
+      "extensionVersion": "1.48.2"
+    },
+    "getChatMessageRequestFields": [
+      "metadata", "prompt(系统提示)", "chatMessagePrompts[](source: USER|SYSTEM|TOOL; prompt/images/thinking/signature/toolCalls/toolResultIsError)",
+      "chatModelUid", "requestType=CASCADE", "plannerMode", "toolChoice", "systemPromptCacheOptions=EPHEMERAL",
+      "disableParallelToolCalls=true", "cascadeId(uuid)", "executionId(uuid)",
+      "configuration{maxTokens,maxNewlines,temperature,firstTemperature,topK,topP,stopPatterns,fimEotProbThreshold}",
+      "tools[]{name,description,jsonSchemaString,strict}"
+    ],
+    "getChatMessageResponseFields": ["messageId", "deltaThinking", "deltaSignature", "deltaText", "deltaToolCalls[]{id,name,argumentsJson}", "stopReason", "usage{inputTokens,outputTokens,cacheReadTokens,cacheWriteTokens}"],
+    "modelCatalogObserved": {
+      "entryShape": "label/uid/modelUid/apiBase/serverModelName/tokenizer/effortVariants(low|medium|high|xhigh|max + *-fast)/定价",
+      "examples": ["claude-opus-5-medium @ https://server.codeium.com", "claude-fable-5-1-medium", "swe-2-high", "swe-1-6-slow", "swe-1-7-lightning", "adaptive", "glm-5-2", "glm-5-3-low/high/max", "kimi-k3-high", "gpt-5-6-sol", "gpt-5-6-luna", "gpt-6-astra-medium"],
+      "tokenizer": "LLAMA_WITH_SPECIAL2"
+    }
+  },
+  "authFlow": {
+    "source": "本机第三方开源参考实现（oh-my-pi oauth/devin.ts）+ docs.devin.ai/cli/enterprise/devin-auth.md",
+    "login": "devin auth login → 浏览器 GET https://app.devin.ai/auth/cli/continue?redirect_uri=http://127.0.0.1:59653/callback&state=<uuid>&prompt=select_account&code_challenge=<S256>&code_challenge_method=S256",
+    "tokenExchange": "POST https://api.devin.ai/auth/cli/token {code, code_verifier} → {token: JWT}",
+    "storage": "credentials.toml（$XDG_DATA_HOME/devin/ 或 ~/.local/share/devin/；Windows %APPDATA%\\devin\\）；文档称 persistent 不过期；本机不存在该文件",
+    "acpMode": "宿主经 authenticate 注入 api_key+api_server_url（method windsurf-api-key），本地凭据弃用",
+    "manualFallback": "devin auth login --force-manual-token-flow（远程/SSH）；acp 可读 WINDSURF_API_KEY"
+  },
+  "skillsSystem": {
+    "source": "docs.devin.ai/cli/extensibility/skills/overview.md + 本机日志 skills discovery 行",
+    "projectDirs": [".agents/skills/<name>/SKILL.md", ".devin/skills/<name>/SKILL.md", ".windsurf/skills/<name>/SKILL.md"],
+    "globalDirs": ["~/.agents/skills/<name>/SKILL.md", "~/.config/devin/skills/<name>/SKILL.md（XDG；本机即此目录，99 个 symlink 指向 ~/.agents/skills）", "~/.codeium/<channel>/skills/<name>/SKILL.md", "%APPDATA%\\devin\\skills\\<name>\\SKILL.md"],
+    "providerLayouts": ["devin", "agents_standard", "cursor", "windsurf", "claude", "opencode", "zed", "copilot"],
+    "frontmatter": ["name", "description", "allowed-tools（技能内自动批准）", "permissions{allow,deny,ask}", "triggers[user,model]", "subagent/agent", "model 覆盖"],
+    "observedDiscovery": "loaded=11 by_provider=[builtin=3,copilot=1,devin=7]（2026-09-16 会话）"
+  },
+  "sessionStorage": {
+    "source": "本机 ~/.local/share/devin/cli/sessions.db schema（SQLite + refinery 16 迁移，实读）",
+    "tables": {
+      "sessions": "id/working_directory/backend_type/model/agent_mode/cogs_json/workspace_dirs/hidden/metadata",
+      "prompt_history": "content/timestamp/session_id/is_shell",
+      "message_nodes": "会话内 node 森林（parent_node_id）——支撑 /fork /steps /revert",
+      "rendered_commits": "sequence_number + rendered_html",
+      "tool_call_state": "tool_call_json = 'Serialised acp::ToolCall JSON'，tool_call_update_json = 完成态更新（schema 注释原文意译）",
+      "app_state": "key/value"
+    },
+    "rowCounts": "本机全 0（会话数据未落库或已清理）",
+    "sessionLocks": "session_locks/<adjective-noun>.lock 内容为持有进程 PID"
+  },
+  "featureFlags": {
+    "source": "本机 ~/.cache/devin/cli/unleash_definitions.*.bin 解码（563 个）",
+    "cliRelevant": ["use-sandboxed-cli-toolbox", "devin-cli-bundling", "devin-cli-compaction-threshold", "enable-devin-cli-swe2-self-compaction", "enable-devin-cli-cloud-compaction-schedule", "block-devin-local-from-cli", "cascade-devin-local-send-as-fork", "cli-smart-mode", "cli-user-edit-awareness", "cli-symlink-guard-killswitch", "cli-local-fusion-killswitch", "acp-v2", "acp-remote-hosts", "acp-shared-transcript", "enable-handoff", "follower-mode-cloud-sessions", "desktop-session-subscribers"],
+    "cuBuRelevant": ["cascade-windsurf-browser-control", "CASCADE_WINDSURF_BROWSER_TOOLS_ENABLED", "windsurf-browser-remote-debugging-port", "windsurf-browser-screenshot-tracking", "windsurf-browser-webdev-tracking", "cascade-devin-testing-panel", "CASCADE_ENABLE_IDE_TERMINAL_EXECUTION", "CASCADE_WEB_SEARCH_ENABLED", "CASCADE_WEB_TOOLS_READ_URLS"],
+    "telemetry": "Unleash；本机评估记录 cli-smart-mode=true cli-user-edit-awareness=true"
+  }
+}

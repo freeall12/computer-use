@@ -1,0 +1,82 @@
+{
+  "_provenance": {
+    "status": "实测（asar 解包静态逆向）",
+    "evidence": [
+      "agents/kimi-code/browser-use.md §3（链路 B：桌面内嵌浏览器，单一 run 工具 + 43 操作；§3.2 操作清单逐条列出）",
+      "agents/kimi-code/evidence/inventory.md §9（browser-tool-schema.ts region 的 Requests 数组逐名实录）"
+    ],
+    "original_path": "/Applications/Kimi Code.app/Contents/Resources/app.asar → out/screenshot-gqZU6x82.cjs（内嵌 browser-tool-schema.ts region）",
+    "confidence": "已还原操作名=高（evidence §9 按行式前缀逐名实录）；总数出入=中：分册标题写 43，逐名清单实收 39，差异 4 个操作未在本机还原（可能为别名/变体或分册笔误），待复核",
+    "notes": "per-session ephemeral HTTP MCP（随机端口 /mcp，请求头 X-Kimi-Session-Id，deferred:true）；协议 kimi.browser/1.0.0；多操作参数合并扁平化进单一 run 工具 schema（browser-tool-schema.ts 的 merge/flatten/describeUsage）"
+  },
+  "tool_name": "run",
+  "protocol": "kimi.browser/1.0.0",
+  "exposure": "per-session ephemeral HTTP MCP（registerDesktopBrowserMcp，X-Kimi-Session-Id 头）",
+  "operations_39": [
+    "browser.get_history",
+    "browser.get_downloads",
+    "browser.get_device_profiles",
+    "browser.get_state",
+    "browser.activate_panel",
+    "browser.create_tab",
+    "browser.release_tab",
+    "browser.activate_tab",
+    "browser.switch_tab",
+    "browser.close_tab",
+    "tab.set_device_mode",
+    "tab.get_state",
+    "tab.navigate",
+    "tab.search",
+    "tab.go_back",
+    "tab.go_forward",
+    "tab.reload",
+    "tab.stop_loading",
+    "tab.wait_for_load",
+    "page.wait_for",
+    "page.text.snapshot",
+    "page.visual.snapshot",
+    "page.elements.snapshot",
+    "page.visual.crop",
+    "page.visual.click",
+    "page.visual.click_if_interactive",
+    "page.visual.hover",
+    "page.visual.scroll",
+    "page.visual.drag",
+    "page.visual.type_text",
+    "page.visual.press_key",
+    "page.element.click",
+    "page.element.hover",
+    "page.element.fill",
+    "page.element.type_text",
+    "page.element.press_key",
+    "page.element.select_option",
+    "page.element.set_checked",
+    "page.element.scroll_into_view"
+  ],
+  "counting": {
+    "browser_group": 10,
+    "tab_group": 9,
+    "page_group": 12,
+    "page_element_group": 8,
+    "total_restored": 39,
+    "booklet_title": 43,
+    "discrepancy": "分册标题 43 与逐名清单 39 差 4；按 evidence §9 的行式前缀读法（无前缀名继承 page.visual. 前缀）清单自洽为 39。43 的精确构成未还原，见低置信度清单。"
+  },
+  "observation": {
+    "text_mode": "page.text.snapshot：渲染 DOM 文本，TOON 格式分块（默认 maxChars 12000，2048–24000；scope=viewport/document/element 子树；cursor 续读；Text block IDs cannot be used as element refs）",
+    "element_mode": "page.elements.snapshot：TOON 行式（limit=100、maxChars=8000，role/text 过滤，scanTruncated 提示），产出元素 ref 供 page.element.*",
+    "visual_mode": "page.visual.snapshot：截图 + snapshotId；page.visual.crop 从原图切区域（缓存 60s，SNAPSHOT_EXPIRED 要求重拍）；坐标=返回图像素，映射回 CSS viewport",
+    "wait": "page.wait_for：element/text/url 三种条件 + stableForMs；超时带 lastObserved 证据"
+  },
+  "action_mechanics": {
+    "isolated_worlds": "AUTOMATION_WORLD_ID=1001（automation）、BROWSER_ANNOTATION_WORLD=1002（标注拾取）——与页面 JS 隔离",
+    "click_evidence": "ClickCandidate {ref,tagName,role,name,id,classes,clickable,disabled,evidence:native|role|handler|pointer|none,bounds}",
+    "local_file_refusal": "BROWSER_LOCAL_FILE_REFUSAL（本地文件页拒绝自动化，ask the user to describe what they see instead）"
+  },
+  "human_in_the_loop": {
+    "surface_state": "{browserId,revision,labels:{running,elapsed,takeover,takeoverHint,pointer,typing,key,scrolling,activityTarget,activities:{reading,inspecting,capturing,clicking,hovering,typing,pressing,selecting,checking,scrolling,dragging,navigating,waiting}},colorScheme,reducedMotion,corners[≤4],insets}",
+    "takeover": "BROWSER_USER_TAKEOVER → 本回合停止一切 browser 调用；控制权回合结束自动过期（Control expires at the end of the turn）",
+    "control_vs_visible": "activeTabId（agent 控制目标）≠ visibleTabId（用户在看的面板页）",
+    "receipts": "动作截图（≤720px、JPEG q72、归一化 point/box 标记）按会话存 userData/browser-receipts/<sessionId>/，保留 30 天、每日清理；84 个 kimi:browser-* IPC 通道"
+  }
+}

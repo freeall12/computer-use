@@ -1,0 +1,89 @@
+{
+  "_provenance": {
+    "status": "实测（asar 解包静态逆向）",
+    "evidence": [
+      "agents/synara/browser-use.md §3（cua-driver CDP 浏览器家族：LLM↔驱动名映射、prepare 策略、可见窗口授权、在途丢失语义）",
+      "agents/synara/evidence/inventory.md C8-C12（COMPUTER_BROWSER_DRIVER_NAMES，MigrationBackup-0KuIxbjo.mjs:13266-13276）"
+    ],
+    "original_path": "app/apps/server/dist/index.mjs（COMPUTER_BROWSER_DRIVER_NAMES 与 browserCall）+ cua-driver 二进制 strings（existing_profile 锚点与端点归属校验文案）",
+    "confidence": "映射表=高；computer_browser_press→browser_type 的语义=中（映射表如此写，未追踪驱动侧分支）",
+    "notes": "目标是 session-scoped target_id/tab_id 能力（非原生窗口 id）；输入走 CDP 而非 OS 事件"
+  },
+  "llm_to_driver_mapping_10": [
+    {
+      "llm": "computer_browser_state",
+      "driver": "get_browser_state",
+      "is_mutation": false
+    },
+    {
+      "llm": "computer_browser_prepare",
+      "driver": "browser_prepare",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_navigate",
+      "driver": "browser_navigate",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_click",
+      "driver": "browser_click",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_type",
+      "driver": "browser_type",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_press",
+      "driver": "browser_type",
+      "is_mutation": true,
+      "note": "press 复用 type 通道带 key 语义（中置信推断）"
+    },
+    {
+      "llm": "computer_browser_dialog",
+      "driver": "browser_dialog",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_upload",
+      "driver": "browser_set_input_files",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_download",
+      "driver": "browser_download",
+      "is_mutation": true
+    },
+    {
+      "llm": "computer_browser_pointer",
+      "driver": "browser_pointer",
+      "is_mutation": true
+    }
+  ],
+  "target_binding": {
+    "model": "per-thread 的 target→tabs 记忆；模型漏传 tab_id 时从最近 bind 结果解析，无法解析则结构化拒绝 browser_tab_required",
+    "identity": "session-scoped target_id / tab_id，与桌面工具的原生窗口 id 刻意分离"
+  },
+  "prepare_strategies": {
+    "isolated_new": "驱动自己拉起的隔离 headless 浏览器（profile 隔离）",
+    "isolated_named": "同上，带命名 profile",
+    "existing_profile": {
+      "attach_target": "用户已开的真实浏览器",
+      "approval_anchor": "需要精确 pid 批准锚点 + window_id 批准锚点 + 能力清单（capability manifest）",
+      "endpoint_ownership_revalidation": [
+        "the process is no longer proven to be the approved embedded browser host",
+        "the DevTools endpoint transport changed since binding; prepare and bind again"
+      ],
+      "chrome_limitation_bypass": "Chrome refuses to open --remote-debugging-port on its default data directory… Relaunch via launch_app with cdp_debugging_port AND additional_arguments: ['--user-data-dir=<some other path>']"
+    }
+  },
+  "windowed_consent": {
+    "rule": "browser_prepare 带 windowed:true 时走 spaceBroker.assertForegroundAllowed(threadId) 且投递模式强制 foreground",
+    "rejection_copy": "Showing a browser window was not allowed for this task… Keep windowed false to work in the background",
+    "consent_engine": "与桌面共用 computerVisibleUse 正则 + 批准卡（见 reference/visible-use-authorizer.ts）"
+  },
+  "in_flight_semantics": "除 get_browser_state 外全部记为 mutation；在途调用被人接管打断时上报『已派发-效果未知』",
+  "linux_gating": "无 headless 拉起/可见窗口能力时逐项结构化拒绝"
+}

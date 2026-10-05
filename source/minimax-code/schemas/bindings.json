@@ -1,0 +1,61 @@
+{
+  "_provenance": {
+    "status": "实测（用户目录官方插件缓存直读）",
+    "evidence": [
+      "agents/minimax-code/computer-use.md §3.2（computer.binding.json 全文引用）",
+      "agents/minimax-code/browser-use.md §2（browser.binding.json 字段）",
+      "agents/minimax-code/evidence/inventory.md B/C 节（~/.minimax/v2/plugin-cache/official/sha256-tree-v1-*/bindings/*.binding.json）"
+    ],
+    "original_path": "~/.minimax/v2/plugin-cache/official/sha256-tree-v1-b9fdb15…/bindings/computer.binding.json 与 ~/.minimax/v2/plugin-cache/official/sha256-tree-v1-74e227d…/bindings/browser.binding.json",
+    "confidence": "高（binding 文件内容直接可读）",
+    "notes": "Host Binding 是 MiniMax 对 Claude Code 插件体系的扩展：官方插件可声明绑定宿主原生能力；宿主侧适配器在 local-runtime-v2/src/service/turn-system/agent-host/assembly/host-capability/{computer,browser,registry}.ts"
+  },
+  "binding_schema": {
+    "bindingId": "string（binding 实例标识）",
+    "logicalToolName": "string（逻辑工具名，宿主适配器据此改名/绑定）",
+    "hostCapability": {
+      "id": "string（能力域 id：computer.use / browser.use）",
+      "version": "number（能力协议版本，当前 1）"
+    },
+    "requiredSkills": "string[]（启用前必须加载的 skill）",
+    "allowedSurfaces": "string[]（允许的会话 surface，当前仅 interactive —— 后台/cron 会话不可用）"
+  },
+  "bindings": [
+    {
+      "bindingId": "computer-control",
+      "logicalToolName": "computer.control",
+      "hostCapability": {
+        "id": "computer.use",
+        "version": 1
+      },
+      "requiredSkills": [
+        "computer-use"
+      ],
+      "allowedSurfaces": [
+        "interactive"
+      ],
+      "host_adapter": "selectTargets = tools.filter(t => t.def.name.startsWith('computer_'))，原样透出（不改名）"
+    },
+    {
+      "bindingId": "browser-control",
+      "logicalToolName": "browser.control",
+      "hostCapability": {
+        "id": "browser.use",
+        "version": 1
+      },
+      "requiredSkills": [
+        "control-in-app-browser"
+      ],
+      "allowedSurfaces": [
+        "interactive"
+      ],
+      "host_adapter": "把 browser 工具改名为 mcp_browser 暴露给插件绑定，并保留 turn 局部准入标记"
+    }
+  ],
+  "gate_semantics": {
+    "plugin_admission": "仅当受信任快照里存在 plugin.name==='computer-use' && plugin.source==='official' && hostCapabilities 含 'computer-use' 时 setComputerUseEnabled(true)；插件被吊销时立即 setEnabled(false) 并 client.release()",
+    "tool_catalog": "先从 nativeTools 剔除所有 computer_ 前缀工具；仅当 toolInput.computerUseActive（用户按会话选中 CU）且 client 就绪时重新构建追加 —— 未启用 = 模型根本看不到这些工具（fail-closed）",
+    "execute_time_check": "工具执行时再查一次 isComputerUseEnabled()，并注册 AbortController 到全局表，setEnabled(false) / /computer-use/abort 即时掐断在途 CUA 调用",
+    "skill_gate": "requiredSkills 未加载时工具返回 SKILL_REQUIRED；browser skill 加载必须独占一个 assistant step"
+  }
+}

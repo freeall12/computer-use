@@ -1,0 +1,134 @@
+{
+  "_provenance": {
+    "status": "实测（SDK 随包 TS 源码直读 + Runtime/Bridge 二进制 strings + SKILL.md 全文）",
+    "evidence": [
+      "agents/qoder/computer-use.md §3（传输协议：注册表/握手/心跳/超时/busy）+ §4.1（11 方法语义与参数校验）",
+      "agents/qoder/evidence/inventory.md C7（socketTransport.ts 114 行/runtimeBootstrap.ts 22 行/index.ts 151 行摘要）+ C8（SKILL 全文）+ C9/C10（Runtime/Bridge 符号）"
+    ],
+    "original_path": "/Applications/Qoder.app/Contents/Resources/node-repl/node_modules/@qoder-space/computer-use-sdk/source/{socketTransport,runtimeBootstrap,index}.ts（SDK 随包附带 TS 源码共 404 行）+ ~/.qoder/bin/qoder-computer-use/Qoder Computer Use.app（Runtime 二进制 strings）",
+    "confidence": "方法面/IPC 类型名/传输参数=高（SDK 源码直读）；Runtime 侧行为（AX 序列化细节/CGEvent）=中（strings 符号推断）",
+    "notes": "SDK 注释自述『与 qcum 的应用级快照契约一致，不伪造 qwen 的窗口 ID 或元素 token』；能力域=单个 app 的 key window，无全屏/desktop 域"
+  },
+  "sdk_entry": "ComputerUse.create({signal})（node_repl 内 @qoder-space/computer-use-sdk）",
+  "activation_chain": [
+    "读注册表 ~/.qoder/ipc/computer-use-tools.json",
+    "ENOENT/ECONNREFUSED → /usr/bin/open -g <QODER_CU_RUNTIME_APP_PATH>（主进程经 env 注入内核）等 10s",
+    "UDS 连接 socketPath → initialize{token,instanceId} 握手 → 15s ping 心跳"
+  ],
+  "registry_file": {
+    "path": "~/.qoder/ipc/computer-use-tools.json",
+    "schema": "{protocol:'qoder-computer-use-tools', version:1, socketPath, instanceId, token(≥32)}",
+    "security_checks": [
+      "lstat 普通文件",
+      "非符号链接",
+      "mode & 0o077 === 0（0600）",
+      "属主为当前 uid"
+    ]
+  },
+  "transport_params": {
+    "handshake": "initialize{} 携带 {token, instanceId}；响应 instanceId 必须一致并返回 sessionId",
+    "heartbeat": "15s 一次 ping，失败即断链",
+    "timeout_default_ms": 140000,
+    "timeout_range_ms": [
+      1,
+      600000
+    ],
+    "timeout_semantic": "超时后 SDK 主动断链——结果可能已生效，先观察再决定是否重试（禁止盲目重放）",
+    "cancel": "{method:'cancel'}",
+    "concurrency": "ComputerUse 类内置 busy 标志，同一连接同时只允许一个在途请求；Runtime 侧另有 ComputerUseIPCRequestLimiter/RequestAdmission/RequestTimeoutState"
+  },
+  "methods_11": [
+    {
+      "method": "listApps",
+      "ipc": "ComputerUseIPCListAppsRequest",
+      "semantic": "枚举可控制应用"
+    },
+    {
+      "method": "getAppState({app})",
+      "ipc": "ComputerUseIPCAppGetStateRequest",
+      "semantic": "会话级快照：截图 + AX 树；每个 assistant turn 交互前必须先调；目标未运行会透明拉起（AppStart 隐式启动）"
+    },
+    {
+      "method": "click",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "click",
+      "semantic": "elementIndex 或 x,y 二选一（同时给即抛错）；mouseButton left/right/middle；clickCount 1–3；坐标为截图像素且要求截图新鲜+窗口几何未变"
+    },
+    {
+      "method": "setValue",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "setValue",
+      "semantic": "仅限 AX 树标记 (settable, string) 的元素；走 AXValue，全 Unicode；Monaco 编辑器正文只能改 AX 镜像不改真实 buffer——应改用键盘/查找替换"
+    },
+    {
+      "method": "typeText",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "typeText",
+      "semantic": "\\n 会模拟回车（消息类 app 会直接发送）"
+    },
+    {
+      "method": "paste",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "paste",
+      "semantic": "format text/md/html；走系统剪贴板，完成后条件恢复用户原剪贴板；粘贴≠编辑成功，须回读 app state 验证"
+    },
+    {
+      "method": "pressKey",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "pressKey",
+      "semantic": "xdotool 风格（a/Return/super+c/KP_0）；目标为指定 app 的合成键盘事件路径，不能触发 OS 级全局快捷键（Cmd+Shift+3/5、Mission Control、Spotlight 等）"
+    },
+    {
+      "method": "scroll",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "scroll",
+      "semantic": "direction up/down/left/right + pages∈(0,100]（默认 1）；元素优先于坐标"
+    },
+    {
+      "method": "drag",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "drag",
+      "semantic": "fromX/fromY/toX/toY；菜单项不支持鼠标动作"
+    },
+    {
+      "method": "performSecondaryAction",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "performSecondaryAction",
+      "semantic": "调用元素暴露的次级 AX 动作（展开/显菜单/增减/取消），禁止猜动作名"
+    },
+    {
+      "method": "selectText",
+      "ipc": "ComputerUseIPCAppPerformActionRequest",
+      "action": "selectText:{_0:params}",
+      "semantic": "元素内选中文本或置光标（selection: text/cursor_before/cursor_after，prefix/suffix 消歧）；要求文本与 AX 树逐字一致（含 Markdown 符号）"
+    }
+  ],
+  "other_runtime_ipc": [
+    "ComputerUseIPCAppStartRequest（隐式启动）",
+    "AppStartFrontmostCapture / AppCancelCapture",
+    "AppUsage / Health / HostSessionObserve",
+    "CancellationKey / EarlyCancellationRegistry",
+    "Appshot 系（AppshotDisplay/Rect/Target/CaptureUpdate/UpdateEnvelope/AnimationTarget）",
+    "ComputerUseIPCRequestLimiter / RequestAdmission / SenderAuthorization"
+  ],
+  "error_contract": {
+    "type": "ComputerUseError",
+    "payload": "error.result 保留 text+images 供检查",
+    "discipline": "错误即中止同一代码单元的后续动作（SKILL 明确禁止 catch 后继续跑完序列）；多处运行时文案强制『观察后再重试』"
+  },
+  "trust_chain": {
+    "trusted_team_identifiers": [
+      "T27K5A5ZWD",
+      "B6U242QL73"
+    ],
+    "trusted_bundle_identifiers_count": 14,
+    "notable": [
+      "com.qoder.ide",
+      "com.qoder.app",
+      "com.qoder.computeruse.bridge",
+      "com.aliyun.lingma.ide（通义灵码）"
+    ],
+    "sender_authorization_enforced": false,
+    "note": "QoderComputerUseEnforceSenderAuthorization=false（当前构建未强制，但 ComputerUseIPCSenderAuthorization/parent_authorization 机制在位；launcher 注释明示 Bridge 校验直接父进程 → computerUseClientLauncher.cjs 用 process.execve 不留 Node 中间进程）"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "_provenance": {
+    "status": "实测（SKILL.md 全文 + SDK bundle + 主进程偏移还原）",
+    "evidence": [
+      "agents/qoder/browser-use.md §4（Browser Connector 发现协议 + Browser Agent API 对象面/传输/降级链/错误码族）+ §5（安全模型）",
+      "agents/qoder/evidence/inventory.md B5-B9（qoder-app-host.cjs 明文 3559B、安装器偏移、registry 校验、SKILL 全文、browserAgentOutput.ts）"
+    ],
+    "original_path": "/Applications/Qoder.app/Contents/Resources/native-messaging-host/qoder-app-host.cjs + node-repl/node_modules/@qoder-space/computer-use-sdk/third_party/browser-use-sdk/{README.md,dist/registry.js}（@ali/qoder-browser-use-sdk 0.4.0，Apache-2.0，Copyright 2026 Qoder —— Qoder 自研非开源 browser-use 项目）",
+    "confidence": "对象面/传输/错误码=高（SKILL 与 bundle 直读）；capabilities 细节=中（SKILL 摘录）",
+    "notes": "本机未激活（~/.qoder/ipc/browser-use.json 与 ~/.qoder/browser-connector/ 均不存在），该面为静态还原"
+  },
+  "activation": {
+    "setting_key": "qoder.computer-control.browserUse.enabled（默认 false）",
+    "entry": "createBrowserAgent()（@qoder-space/computer-use-sdk 再导出 @ali/qoder-browser-use-sdk）",
+    "registry": {
+      "path": "~/.qoder/ipc/browser-use.json",
+      "checks": [
+        "lstat 普通文件",
+        "非符号链接",
+        "≤32KB",
+        "mode & 63 === 0（0600）",
+        "属主 uid",
+        "processId 进程存活"
+      ],
+      "endpoint_validation": "强制 http: + 数值 loopback 主机（127.0.0.1/[::1]）+ 无凭据/query/fragment",
+      "protocol": "qoder-browser-use v1，方言 tool|command，agent 方法 browserCommand，Bearer token 鉴权",
+      "replay_rule": "Transport failures are never replayed automatically"
+    }
+  },
+  "discovery_channel": {
+    "native_messaging": "com.qoder.app.connector（host 脚本 qoder-app-host.cjs）",
+    "frame": "4 字节小端长度前缀 + JSON，单帧上限 1MB",
+    "relay_clients": "读 ~/.qoder/browser-connector/clients/*.json（{id,port,pid,timestamp}）：30s 过期 + 未来时间戳容差 5s + pid 存活校验，无效即时删除；watch 模式 protocolVersion 2 事件 relayClientsClientsChanged（每秒重读广播）",
+    "browser_manifest_roots": "Chrome[ Beta/Dev/Canary/ForTesting]/Chromium/Edge[…]/Brave[…]/Opera[…GX]/Vivaldi/Quark 的 NativeMessagingHosts（darwin 19 项；win32 另注册 7 个 HKCU 键）",
+    "extension_allowlist": {
+      "stable": [
+        "gblapfbnbicdckfhkllcnfleiemhmgeb",
+        "oknkojfamnpljdfpinkhbibicojelkoj"
+      ],
+      "canary_dev_conditional": [
+        "eglgpghkgebjkpjmghbbaghojdheaajg",
+        "abanchnejfbkpjihajekdcfdknnjpbkj",
+        "dhejobnibooeajpcmeahhipbhnammmjb"
+      ],
+      "allowed_origins": "chrome-extension://<id>/"
+    },
+    "self_test": "安装前 spawn 自己 + watchRelayClients 握手（5s 超时，错误码 NATIVE_CHROME_CONNECTOR_SELF_TEST_*）"
+  },
+  "object_face": {
+    "agent": [
+      "browsers.list",
+      "browsers.get",
+      "browsers.getDefault",
+      "browsers.getForUrl",
+      "documentation.get('<id>')（动态文档系统）"
+    ],
+    "browser": [
+      "tabs.new",
+      "tabs.get",
+      "tabs.selected",
+      "tabs.user.openTabs",
+      "tabs.user.claimTab",
+      "capabilities",
+      "visibility",
+      "management"
+    ],
+    "tab": [
+      "goto",
+      "ax.get(mode: state|screenshot|both, {disableDiffing})——原生 Chrome AX 树文本，元素序号只对最近一次快照有效，连续读取默认紧凑 diff",
+      "ax.write——语义态+截图一起输出（browserAgentOutput.ts 补 AX 二进制解码与 nodeRepl.write/emitImage 展示）",
+      "playwright(ByRole/Label/Text/TestId/CSS + frameLocator + waitForEvent('filechooser'|'download'))",
+      "screenshot",
+      "capabilities",
+      "requestManualHandoff()——聚焦真实标签请用户手动完成（登录/CAPTCHA），然后须重新 list+claim 再继续",
+      "markDeliverable()——Turn 结束保留成果页（否则 agent 建的标签自动关闭）",
+      "markHandoff()——保留并交还控制",
+      "nameSession()"
+    ],
+    "tab_capabilities": {
+      "cdp": "严格允许列表（允许域之外全禁）：Cookie/Storage/Runtime/Network 响应体/Target/WebAuthn 等凭据与跨 target 方法 stay blocked",
+      "botDetection": "报告验证码/挑战（禁止绕过，人工接管）",
+      "pageAssets": "资源清单与本地打包",
+      "webmcp": "发现/调用页面注册的 WebMCP 工具（绑定当前快照，结果不可信）",
+      "visibility": "显示/隐藏真实窗口",
+      "viewport": "视口",
+      "management": "受限管理 + 审计轨迹 browser_management_get_audit_trail"
+    },
+    "browser_capabilities": {
+      "visibility": "窗口可见性",
+      "viewport": "视口",
+      "management": "受限管理"
+    }
+  },
+  "claim_semantics": "claim 标签一次性 opaque id；标题/URL 变化即 fail-closed；claim 的用户标签『释放、不关闭』",
+  "degradation_chain": [
+    "① AX 状态与语义动作",
+    "② Playwright locator（显式等待）",
+    "③ 截图 + CUA / DOM CUA（像素级）"
+  ],
+  "concurrency_rule": "禁止 Promise.all 并发浏览器动作",
+  "error_codes": [
+    "BROWSER_CONNECTOR_NOT_CONFIGURED",
+    "BROWSER_CONNECTOR_NOT_READY",
+    "BROWSER_CONNECTOR_DISABLED",
+    "BROWSER_CONNECTOR_WAITING",
+    "BROWSER_CONNECTOR_NOT_CONNECTED",
+    "BROWSER_HOST_STALE",
+    "BROWSER_EXTENSION_UPDATE_REQUIRED",
+    "TURN_CONTEXT_REQUIRED",
+    "WORKSPACE_CONTEXT_REQUIRED",
+    "BROWSER_NOT_FOUND(404)",
+    "BROWSER_COMMAND_FAILED(409)",
+    "DIALECT_UNSUPPORTED",
+    "BROWSER_USE_REGISTRY_*",
+    "REMOTE_CAPABILITY_UNSUPPORTED",
+    "SNAPSHOT_EXPIRED（视觉快照 60s 缓存过期）"
+  ],
+  "dynamic_doc_ids": [
+    "bootstrap-troubleshooting",
+    "accessibility",
+    "confirmations",
+    "file-uploads",
+    "screenshots",
+    "tab-claiming-chrome",
+    "tab-cleanup-chrome",
+    "visibility",
+    "webmcp",
+    "browser-control-interruption",
+    "local-web-development",
+    "session-naming"
+  ],
+  "security_model": [
+    "无逐动作弹窗：当前可信 Turn 默认放行，扩展执行前仍校验绑定的标签/URL/target/凭据边界",
+    "发送/发布/购买/删除/上传/登录/读历史或剪贴板/执行页面脚本/调 WebMCP/权限或管理变更/敏感数据外传必须由扩展在执行时展示具体目标并取得用户确认；确认后目标变化即 fail-closed",
+    "页面内容/WebMCP 定义与结果/下载/页面脚本一律视为数据非指令",
+    "凭据硬边界：密码/OTP/支付/cookie 禁入聊天与 REPL；Normal fill/type methods reject sensitive fields；CAPTCHA 一律 botDetection 上报 + 人工接管",
+    "上传路径门：filechooser 必须先 waitForEvent 武装；路径由主进程按当前工作区策略解析校验，扩展显示文件名与数量供确认；禁止用页面脚本/CDP/DOM 属性绕过"
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "_provenance": {
+    "status": "实测+文档",
+    "evidence": [
+      "agents/zcode/browser-use.md §2–§3（桥接器、命令面、对象模型）、§4–§6（观察/动作/安全）",
+      "agents/zcode/evidence/inventory.md §2.19（api.json manifest v11 成员枚举）、§2.20–§2.21（传输桥与命令层）"
+    ],
+    "note": "手写整理 ZCode browser-use 0.5.1 的对象面：成员枚举逐字来自 docs/api.json（manifest version 11）的 python 解析输出（evidence §2.19）；unsupportedByDefaultIn 标注该成员在默认后端上被 Proxy 隐藏。方法签名为分册记录的签名摘要，个别参数细节属推断时在 note 标注。"
+  },
+  "manifestVersion": 11,
+  "entrypoint": "setupBrowserRuntime（scripts/browser-client.mjs）→ agent.browsers",
+  "bridge": {
+    "symbol": "Symbol.for(\"zcode.node-repl.browser-control-bridge\")",
+    "members": ["list", "execute", "documentationRoot", "assertAvailable"],
+    "env": ["ZCODE_NODE_REPL_BROWSER_BROKER_SOCKET", "ZCODE_NODE_REPL_BROWSER_BROKER_TOKEN"],
+    "protocol": {
+      "request": "{id:uuid, token:hex, op:\"list\"|\"execute\", browserId?, browserGeneration?:int, command?:{method,...}, context:{runtimeScope,sessionId,turnId?,trace?}}（NDJSON）",
+      "response": "{id, ok:true, browsers?|result?} | {id, ok:false, error}；zod 校验 + id 回对照 + 32MiB 上限"
+    }
+  },
+  "backendTypes": ["iab", "extension", "cdp"],
+  "objects": {
+    "Agent": { "members": ["browsers", "documentation"] },
+    "Browsers": { "members": ["list", "get", "getDefault", "getForUrl", "open"] },
+    "Browser": { "members": ["browserId", "capabilities", "tabs", "nameSession", "user", "documentation"] },
+    "BrowserUser": { "members": ["claimTab", "history", "openTabs"], "unsupportedByDefaultIn": { "history": ["iab"] } },
+    "Tabs": { "members": ["list", "selected", "get", "new", "finalize"], "unsupportedByDefaultIn": { "finalize": ["iab", "cdp"] } },
+    "Tab": { "members": ["id", "capabilities", "goto", "back", "forward", "reload", "close", "url", "title", "screenshot", "getJsDialog", "setViewportSize", "viewportSize", "recording", "finalize", "markDeliverable", "markHandoff", "cua", "dom_cua", "playwright"] },
+    "BrowserRecordingAPI": { "members": ["start", "status", "cancel"] },
+    "PlaywrightAPI": { "members": ["domSnapshot", "elementInfo", "elementScreenshot", "evaluate", "expectNavigation", "frameLocator", "getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByTestId", "locator", "waitForEvent", "waitForLoadState", "waitForTimeout", "waitForURL"] },
+    "PlaywrightLocator": { "members": ["all", "allTextContents", "and", "check", "click", "count", "dblclick", "downloadMedia", "evaluate", "fill", "filter", "first", "getAttribute", "getByRole", "getByText", "getByLabel", "innerText", "isEnabled", "isVisible", "last", "locator", "nth", "or", "press", "selectOption", "setChecked", "textContent", "type", "uncheck", "waitFor"] },
+    "CUAAPI": { "members": ["click", "double_click", "downloadMedia", "drag", "keypress", "move", "scroll", "type"], "unsupportedByDefaultIn": { "downloadMedia": ["iab"] } },
+    "DomCUAAPI": { "members": ["click", "double_click", "downloadMedia", "get_visible_dom", "keypress", "scroll", "type"], "unsupportedByDefaultIn": { "downloadMedia": ["iab"] } },
+    "_visibilityModel": "成员可见性由 BrowserApiPolicy + createBrowserApiProxy 按 requiresCapabilities(browser:<id>/tab:<id>) 与 unsupportedByDefaultIn 执行：不满足的成员从对象上消失（返回 undefined / has:false / ownKeys 过滤），不是报错"
+  },
+  "methodSignatures": {
+    "Browsers.list": { "returns": "[{browserId, type, capabilities}]", "note": "唯一可用性来源；未广告的后端绝不当作可用" },
+    "Browsers.open": { "args": "(url, {reuseTab}?)", "returns": "Promise<Tab>", "note": "同站复用入口（tabs.reuse + same-hostname 匹配）——ZCode 本地化差异" },
+    "Tabs.list": { "returns": "TabInfo[] = [{id, active?, title?, url?, viewport:{width,height}}]", "note": "只列受控 tab，用户 tab 须 user.openTabs()+claimTab" },
+    "Tab.goto": { "args": "(url)", "constraint": "只接受 http:/https:/精确 about:blank；file:/about:*/data:/javascript: 拒绝（fail-closed 报错，不静默换后端）" },
+    "Tab.screenshot": { "args": "({fullPage?, clip?:{x,y,width,height}}?)", "returns": "Promise<Uint8Array> (PNG)", "discipline": "必须同 cell emitImage；默认禁止 snapshot+screenshot 同 cell" },
+    "Tab.setViewportSize": { "args": "({width:320-3840, height:320-2160})", "behavior": "非法输入报错不 clamp（BROWSER_VIEWPORT_LIMITS）" },
+    "Tab.playwright.waitForLoadState": { "args": "({state})", "note": "等待类例行上限 3000ms（对齐 Codex）" },
+    "Tab.playwright.domSnapshot": { "returns": "AI/ARIA 紧凑树文本（含 shadow DOM；不是 outerHTML）；snapshot 的 ref 即 dom_cua 的 node_id" },
+    "Tab.recording.start": { "args": "({viewport, fps, maxDurationMs<=90000, settleMs, showCursor, actions: DSL[wait|click|type|hover|move|scroll|scrollTo|wheel|drag|waitFor]})", "returns": "recordingId（跨 cell 存活凭据）；单 tab 同时一个录制；硬上限 90 秒" },
+    "Tab.recording.status": { "args": "(recordingId, {outputPath}?)", "states": "preparing→capturing→finalizing→completed" },
+    "Tab.cua.click": { "args": "({x,y})（视口整数像素）", "note": "坐标兜底，要求配截图瞄准" },
+    "Tab.dom_cua.click": { "args": "({node_id})", "note": "node_id 即 snapshot 的 ref" },
+    "Tab.getJsDialog": { "returns": "AlertDialog|ConfirmDialog|PromptDialog|BeforeUnloadDialog（accept(text)?/dismiss()）" }
+  },
+  "wireCommands": [
+    "navigate", "back", "forward", "reload", "getState", "snapshot", "screenshot",
+    "click", "fill", "type", "press", "cuaKeypress", "scroll", "cuaScroll", "domCuaScroll",
+    "hover", "select", "check", "drag", "cuaDrag", "elementInfo", "evaluate",
+    "getDialog", "handleDialog", "browserViewportSet", "browserVisibilityGet", "browserVisibilitySet",
+    "recordingStart", "recordingStatus", "recordingCancel", "listUserTabs", "nameSession", "finalizeTabs", "tabs.reuse",
+    "playwright（action 袋，单一封装入口）"
+  ],
+  "playwrightSelectorSerialization": {
+    "note": "tab.playwright 不是 Playwright 库，是语义命令封装：locator 条件串行化为 Playwright selector 字符串由宿主页面内求值",
+    "examples": ["internal:role=button[name=\"...i\"]"],
+    "memberWhitelist": { "PlaywrightAPI": 16, "FrameLocator": 7, "PlaywrightLocator": 32, "Download": 1, "FileChooser": 2 }
+  },
+  "errorModel": {
+    "class": "BrowserCommandError{code, command, result}",
+    "codes": ["backend_unavailable", "execution_error", "cancelled", "timeout", "capability_unsupported"],
+    "discipline": "定位器超时/strict 冲突 → 重新 domSnapshot() 重建 locator，禁止原样重试"
+  },
+  "capabilityBoundaries": [
+    "waitForEvent(\"filechooser\") / FileChooser.setFiles → capability_unsupported（无假成功）",
+    "networkidle 在类型里存在但被当前后端拒绝",
+    "downloadMedia 在 cua/dom_cua 上 IAB 不支持（manifest unsupportedByDefaultIn 且 documented:false）"
+  ]
+}

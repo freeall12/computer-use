@@ -1,0 +1,87 @@
+{
+  "_provenance": {
+    "status": "实测（app-plugin 清单直读）",
+    "evidence": [
+      "agents/qoder/computer-use.md §4.2（Windows 16 工具）",
+      "agents/qoder/evidence/inventory.md C2（plugin.json mcpToolPresentations 全列）+ C3（.mcp.json：server computer-use，stdio，timeout 120000，env_vars QODER_HOME）"
+    ],
+    "original_path": "/Applications/Qoder.app/Contents/Resources/extensions/qoder.computer-control/.qoder-app-plugin/plugin.json（mcpToolPresentations）+ dist/cli/computerUseWindows/.mcp.json",
+    "confidence": "工具清单=高（清单文件直读）；单工具参数=中（中英标题在清单，schema 未还原）",
+    "notes": "Windows 走独立 MCP 工具面（macOS 走 SKILL+SDK，无 MCP）；launcher 与 macOS 同一份 computerUseClientLauncher.cjs，win32 分支设 QODER_CUA_LOG_MODE=ide 等 env 后 execve 到 QoderComputerUse.exe"
+  },
+  "mcp_server": {
+    "name": "computer-use",
+    "transport": "stdio",
+    "timeout_ms": 120000,
+    "env_vars": [
+      "QODER_HOME"
+    ],
+    "exe": "QoderComputerUse.exe（%LOCALAPPDATA% 或 %ProgramFiles% 的 KimiCU 式安装位，env KIMI_CU_WINDOWS_EXE 式覆盖为 Qoder 侧对应）"
+  },
+  "tools_16": [
+    {
+      "name": "list_apps",
+      "semantic": "枚举应用（Windows 面特有窗口枚举能力的入口）"
+    },
+    {
+      "name": "list_windows",
+      "semantic": "窗口枚举（macOS 面无此工具）"
+    },
+    {
+      "name": "get_window",
+      "semantic": "按窗口号取窗口信息（macOS 面无）"
+    },
+    {
+      "name": "launch_app",
+      "semantic": "启动应用"
+    },
+    {
+      "name": "activate_window",
+      "semantic": "抬窗（macOS 面对应 activate_window SDK 语义）"
+    },
+    {
+      "name": "get_app_state",
+      "semantic": "应用快照"
+    },
+    {
+      "name": "get_window_state",
+      "semantic": "按窗口观察（macOS 面无多窗口）"
+    },
+    {
+      "name": "click",
+      "semantic": "点击"
+    },
+    {
+      "name": "perform_secondary_action",
+      "semantic": "次级 AX/UX 动作"
+    },
+    {
+      "name": "set_value",
+      "semantic": "写值"
+    },
+    {
+      "name": "select_text",
+      "semantic": "选中文本"
+    },
+    {
+      "name": "scroll",
+      "semantic": "滚动"
+    },
+    {
+      "name": "drag",
+      "semantic": "拖拽"
+    },
+    {
+      "name": "press_key",
+      "semantic": "按键"
+    },
+    {
+      "name": "type_text",
+      "semantic": "输入文本"
+    },
+    {
+      "name": "run_steps",
+      "semantic": "批量动作序列（macOS SDK 无对应物）"
+    }
+  ]
+}

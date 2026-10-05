@@ -1,0 +1,245 @@
+{
+  "_provenance": {
+    "status": "实测+文档",
+    "evidence": [
+      "agents/zcode/computer-use.md §3（完整工具面）、§7（错误码全景）",
+      "agents/zcode/evidence/inventory.md §2.2（14 工具面）、§2.3（错误码映射与重试策略）、§2.10（tier table）"
+    ],
+    "note": "手写整理的 ZCode computer-use 0.6.3 工具面接口事实。工具名/参数键逐字来自分册记录的 computer-use-client.mjs COMPUTER_METHOD_NAMES 与 docs/computer-use.md；个别参数默认值属推断时在字段级 note 标注。target 双形态与 return_state 语义为分册明示。"
+  },
+  "namespace": "agent.computerUse.computer",
+  "transport": "mcp__node_repl__js（Symbol.for(\"zcode.node-repl.computer-use-bridge\") 桥接，见 reference/）",
+  "targetShape": {
+    "description": "动作类工具的统一目标参数，二选一",
+    "oneOf": [
+      { "type": "element", "index": "integer", "note": "元素索引，来自最新一次树观察；解析失败 fail-closed" },
+      { "type": "coordinate", "x": "integer", "y": "integer", "frame_id": "integer (可选，缺省绑定最新可动作帧)" }
+    ]
+  },
+  "tiers": {
+    "READ_ONLY": ["list_apps", "list_windows", "get_app_state", "request_access"],
+    "T1_INPUT": ["left_click", "scroll", "left_click_drag", "type", "set_value", "select_text", "key", "perform_action", "paste"],
+    "SAFETY_CONTROL": ["stop_computer_control"],
+    "_note": "分层依据 agents/zcode/evidence/inventory.md §2.10；MCP annotations：READ_ONLY/SAFETY_CONTROL → readOnlyHint:true/destructiveHint:false，T1_INPUT → 反之"
+  },
+  "tools": [
+    {
+      "name": "list_apps",
+      "tier": "READ_ONLY",
+      "description": "运行中 app 清单",
+      "parameters": {},
+      "returns": { "apps": [{ "pid": "int", "name": "string", "bundle_id": "string", "active": "bool" }] },
+      "note": "envelope 曾是裸 JSON 数组（历史 bug），现 SDK unwrapEnvelope 解封"
+    },
+    {
+      "name": "list_windows",
+      "tier": "READ_ONLY",
+      "description": "每窗口一行；title 空串=AXTitle 为空、null=读不到或 CG 合并行；subrole 区分真 AX 窗口与 CoreGraphics 残留 surface；bounds 是诊断用全局点，禁止当坐标",
+      "parameters": {
+        "type": "object",
+        "required": ["app_ref"],
+        "properties": { "app_ref": { "$ref": "#/appRef" } }
+      },
+      "returns": {
+        "windows": [{
+          "window_id": "int (稳定)",
+          "owner_pid": "int",
+          "title": "string|null",
+          "subrole": "string",
+          "text_preview": "string (内容提示，绝非标识符)",
+          "bounds": "[x,y,w,h] (诊断)",
+          "main": "bool", "focused": "bool", "onscreen": "bool", "index": "int"
+        }]
+      }
+    },
+    {
+      "name": "get_app_state",
+      "tier": "READ_ONLY",
+      "description": "核心观察：结构化 AX 状态 + 可选窗口栅格；默认按 diff（delta）返回",
+      "parameters": {
+        "type": "object",
+        "required": ["app_ref"],
+        "properties": {
+          "app_ref": { "$ref": "#/appRef" },
+          "include_screenshot": { "type": "boolean", "default": false },
+          "disable_diffing": { "type": "boolean", "default": false, "note": "true 时 force_full 取整树" },
+          "tree_shown_to_model": { "type": "boolean", "note": "台账键：本树是否真的给模型看过；不展示的观察必须显式 false" },
+          "capture_surfaces": { "type": "array", "items": { "enum": ["attached_dialog", "open_panel", "save_panel", "popover"] } }
+        }
+      },
+      "returns": {
+        "state_id": "string (观察收据强校验凭证)",
+        "app": { "pid": "int", "bundle_id": "string", "name": "string" },
+        "window": { "window_id": "int", "title": "string", "window_id_fallback": "bool (true=静默降级到最前窗口，SDK 必须抛 STALE_STATE)" },
+        "elements": [{ "index": "int", "kind": "string", "name": "string", "value": "string", "pressable": "bool", "editable": "bool", "focused": "bool", "actions": ["string"] }],
+        "text": "string (单层树文本；bounds 故意不渲染；sparse 索引头部声明)",
+        "image_ref": { "frame_id": "int", "width": "int", "height": "int", "actionable": "bool", "note": "四键固定，带截图时另发的 image_ref 文本块" }
+      },
+      "errors": ["STRUCTURED_STATE_UNAVAILABLE", "STALE_STATE", "HELPER_UNAVAILABLE", "CONTROL_STOPPED"]
+    },
+    {
+      "name": "left_click",
+      "tier": "T1_INPUT",
+      "description": "元素语义点击（AX）或坐标点击（窗口相对派发）",
+      "parameters": {
+        "type": "object",
+        "required": ["target"],
+        "properties": {
+          "target": { "$ref": "#/target" },
+          "mouse_button": { "enum": ["left", "right", "middle"], "default": "left" },
+          "click_count": { "type": "integer", "default": 1 },
+          "modifiers": { "type": "string", "default": "" },
+          "strategy": { "enum": ["auto", "event"], "default": "auto", "note": "event=CGEvent 合成，要求目标已在最前" },
+          "app_ref": { "$ref": "#/appRef", "note": "声明索引作用域，防多 app 索引退化" },
+          "return_state": { "enum": ["none", "state", "state_and_screenshot"], "default": "none" }
+        }
+      },
+      "errors": ["ELEMENT_UNAVAILABLE", "STALE_STATE", "FOREGROUND_REQUIRED", "CONTROLLER_BUSY", "CONTROL_STOPPED"]
+    },
+    {
+      "name": "left_click_drag",
+      "tier": "T1_INPUT",
+      "description": "双端都是 target 的拖拽",
+      "parameters": {
+        "type": "object",
+        "required": ["from_target", "to"],
+        "properties": { "from_target": { "$ref": "#/target" }, "to": { "$ref": "#/target" }, "modifiers": { "type": "string" }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      }
+    },
+    {
+      "name": "scroll",
+      "tier": "T1_INPUT",
+      "description": "滚轮滚动；amount 为页数 clamp 0-100",
+      "parameters": {
+        "type": "object",
+        "required": ["target", "scroll_direction", "scroll_amount"],
+        "properties": {
+          "target": { "$ref": "#/target" },
+          "scroll_direction": { "enum": ["up", "down", "left", "right"] },
+          "scroll_amount": { "type": "integer" },
+          "strategy": { "enum": ["auto", "event"] }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] }
+        }
+      }
+    },
+    {
+      "name": "type",
+      "tier": "T1_INPUT",
+      "description": "键入文本；可带 target 定位焦点",
+      "parameters": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string" }, "target": { "$ref": "#/target" }, "app_ref": { "$ref": "#/appRef" }, "strategy": { "enum": ["auto", "event"] }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      }
+    },
+    {
+      "name": "set_value",
+      "tier": "T1_INPUT",
+      "description": "AX 直接设值，优先于打字/粘贴",
+      "parameters": {
+        "type": "object",
+        "required": ["target", "value"],
+        "properties": { "target": { "$ref": "#/target" }, "value": { "type": "string" }, "strategy": { "enum": ["auto", "event"] }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      },
+      "errors": ["NOT_SETTABLE", "ELEMENT_UNAVAILABLE"]
+    },
+    {
+      "name": "select_text",
+      "tier": "T1_INPUT",
+      "description": "选中文本范围；缺省选全值；SDK 侧可由内容匹配本地算 range，多义匹配抛 NOT_SELECTABLE 并报候选数",
+      "parameters": {
+        "type": "object",
+        "required": ["target"],
+        "properties": { "target": { "$ref": "#/target" }, "text_range": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2, "note": "[start, length]" }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      },
+      "errors": ["NOT_SELECTABLE"]
+    },
+    {
+      "name": "key",
+      "tier": "T1_INPUT",
+      "description": "键/和弦（如 Control_L+a）；repeat 代替循环；hold_seconds 长按上限 30s（MAX_HOLD_DURATION）",
+      "parameters": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string" }, "repeat": { "type": "integer" }, "hold_seconds": { "type": "number", "maximum": 30 }, "app_ref": { "$ref": "#/appRef" }, "strategy": { "enum": ["auto", "event"] }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      }
+    },
+    {
+      "name": "paste",
+      "tier": "T1_INPUT",
+      "description": "借系统剪贴板 + 模拟 Cmd+V，事后恢复用户剪贴板；后台 app 触发 FOREGROUND_REQUIRED；无 app 读取粘贴内容 → 超时而非假成功",
+      "parameters": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string" }, "format": { "enum": ["text", "md", "html"], "default": "text" }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      },
+      "errors": ["FOREGROUND_REQUIRED", "TIMEOUT"]
+    },
+    {
+      "name": "perform_action",
+      "tier": "T1_INPUT",
+      "description": "触发元素广告过的 AX 副动作；action 只能是元素 actions 列表里的名字，禁止猜测",
+      "parameters": {
+        "type": "object",
+        "required": ["target", "action"],
+        "properties": { "target": { "$ref": "#/target" }, "action": { "type": "string" }, "app_ref": { "$ref": "#/appRef" }, "return_state": { "enum": ["none", "state", "state_and_screenshot"] } }
+      },
+      "errors": ["ACTION_UNAVAILABLE"]
+    },
+    {
+      "name": "request_access",
+      "tier": "READ_ONLY",
+      "description": "查询/请求 TCC 权限（Accessibility + Screen Recording）；kill switch 豁免工具",
+      "parameters": { "type": "object", "properties": { "capabilities": { "type": "object" } } },
+      "returns": { "ready": "bool", "accessibility": "enum[granted,denied,unknown]", "screenRecording": "enum[granted,denied,unknown]", "message": "string?" }
+    },
+    {
+      "name": "stop_computer_control",
+      "tier": "SAFETY_CONTROL",
+      "description": "kill switch 闩锁；之后所有工具（除两豁免）在任何 backend 读取前 fail-hard",
+      "parameters": { "type": "object", "properties": { "reason": { "type": "string" } } },
+      "note": "两豁免 = request_access 与 stop_computer_control 自身"
+    }
+  ],
+  "appRef": {
+    "description": "app 定位四选一；SDK 在绑定后把 appRef 收敛为 {pid, bundle_id, window_id?}（身份收敛）",
+    "oneOf": [
+      { "pid": "int" },
+      { "bundle_id": "string" },
+      { "name": "string (显示名/本地化名；仅第一跳宽容)" },
+      { "app_path": "string" }
+    ]
+  },
+  "errorCodes": {
+    "sdkCodes": [
+      "PERMISSION_DENIED", "NOT_AUTHORIZED", "APP_NOT_FOUND", "AMBIGUOUS_APP", "LAUNCH_FAILED",
+      "INVALID_APP", "ELEMENT_UNAVAILABLE", "STALE_STATE", "NOT_SETTABLE", "NOT_SELECTABLE",
+      "ACTION_UNAVAILABLE", "FOREGROUND_REQUIRED", "CONTROLLER_BUSY", "CONTROL_STOPPED",
+      "SCREEN_LOCKED", "HELPER_UNAVAILABLE", "VERSION_MISMATCH", "TIMEOUT",
+      "STRUCTURED_STATE_UNAVAILABLE", "INTERNAL"
+    ],
+    "brokerToSdk": {
+      "permission_denied": "PERMISSION_DENIED",
+      "controller_busy": "CONTROLLER_BUSY",
+      "broker_unavailable": "HELPER_UNAVAILABLE",
+      "stale_socket": "HELPER_UNAVAILABLE",
+      "unimplemented": "ACTION_UNAVAILABLE",
+      "method_not_found": "INTERNAL",
+      "invalid_request": "INVALID_APP",
+      "_default": "INTERNAL（未知 broker 码绝不静默成功；其余映射项为推断）"
+    },
+    "neverRetry": ["CONTROLLER_BUSY", "CONTROL_STOPPED", "PERMISSION_DENIED", "NOT_AUTHORIZED", "VERSION_MISMATCH", "ACTION_UNAVAILABLE", "NOT_SETTABLE", "NOT_SELECTABLE"],
+    "reobserve": ["ELEMENT_UNAVAILABLE", "STALE_STATE", "STRUCTURED_STATE_UNAVAILABLE"],
+    "errorObject": {
+      "actionSent": "bool (默认 false——故意的保守方向；possibly_sent ⇒ true ⇒ 只许先观察再决定)",
+      "dispatchStatus": "enum[sent, possibly_sent, not_sent]",
+      "details": "frozen {method, brokerCode, owner?, ...}",
+      "retry": "enum[reobserve, retry, never]"
+    },
+    "helperNotReady": { "kind": "CUA_NOT_READY", "maxAttempts": 6, "backoffMs": [250, 500, 750, 1000, 1500] },
+    "brokerResponseAmbiguous": "The Helper may have accepted this action, but its response was lost. Do not replay it automatically（retryable=false）"
+  },
+  "deletedSurface": {
+    "note": "对比 zcode-cua 0.5.12 的 25 个屏幕级工具，0.6.3 收缩为 app/窗口级 14 工具",
+    "removed": ["screenshot", "cursor_position", "mouse_move", "left_click/right_click/middle_click(屏幕级)", "left_mouse_down/up", "double_click", "hold_key", "open_application", "list_displays", "switch_display", "read_clipboard"]
+  }
+}
