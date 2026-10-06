@@ -70,6 +70,22 @@
     return L > 0.62 ? '#171b2c' : '#ffffff';
   }
 
+  /* ---------- 真实 logo：插入 img，加载失败回退 monogram ---------- */
+  function logoImg(ag, cls) {
+    if (!ag.logo) return '';
+    return '<img class="' + cls + '" src="' + esc(ag.logo) + '" alt="" loading="lazy">';
+  }
+  function bindLogoFallback(root, onFail) {
+    $$('img[data-fb]', root).forEach(img => {
+      img.addEventListener('error', () => {
+        const holder = img.parentElement;
+        if (holder) holder.classList.remove('has-logo', 'dk-logo');
+        if (onFail) onFail(holder, img);
+        img.remove();
+      }, { once: true });
+    });
+  }
+
   /* 把目标点（窗口内归一化坐标 或 舞台百分比）解析为舞台像素坐标 */
   function stagePt(p) {
     const sr = stage.getBoundingClientRect();
@@ -270,7 +286,9 @@
       el.setAttribute('aria-label', '查看 ' + ag.name + '（' + ag.vendor + '）的逆向档案');
       el.innerHTML =
         '<svg class="arrow" viewBox="0 0 20 22" aria-hidden="true"><path d="M3 1.6 L3 17.4 L7.3 13.7 L10 20.1 L12.8 18.9 L10.1 12.8 L15.6 12.5 Z"/></svg>' +
-        '<span class="badge" aria-hidden="true">' + esc(ag.monogram) + '</span>' +
+        '<span class="badge' + (ag.logo ? ' has-logo' : '') + '" aria-hidden="true">' +
+          (ag.logo ? '<img class="b-img" src="' + esc(ag.logo) + '" alt="" data-fb loading="lazy">' : '') +
+          '<span class="b-mono">' + esc(ag.monogram) + '</span></span>' +
         '<span class="tag" aria-hidden="true">' + esc(ag.name) + '</span>' +
         '<span class="chip mono" aria-hidden="true">' + esc(ag.toolcall) + '</span>';
       layer.appendChild(el);
@@ -297,6 +315,7 @@
       el.addEventListener('pointerenter', () => { cur.hovered = true; });
       el.addEventListener('pointerleave', () => { cur.hovered = false; });
     });
+    bindLogoFallback(layer);
   }
 
   /* ---------- 反应：目标窗口真实反馈 ---------- */
@@ -611,16 +630,24 @@
     return { toggle() { win.classList.toggle('playing'); } };
   })();
 
-  /* ---------- Dock：仓库 / 文档 · 12 Agent · 访问 GitHub ---------- */
+  /* ---------- Dock：仓库 / 文档 · 12 Agent（真实 logo） · 访问 GitHub ---------- */
   function buildDock() {
     const box = $('#dockAgents');
     box.innerHTML = AGENTS.map(ag => {
       const c = desat(ag.color);
       return '<button class="dk-item" type="button" data-slug="' + ag.slug + '"' +
         ' data-tip="' + esc(ag.name) + '" aria-label="聚焦 ' + esc(ag.name) + ' 并打开档案">' +
-        '<span class="dk-ic" style="background:' + c + ';color:' + textOn(c) + '">' +
-        esc(ag.monogram) + '</span></button>';
+        (ag.logo
+          ? '<span class="dk-ic dk-logo">' +
+            '<img src="' + esc(ag.logo) + '" alt="" data-fb data-bg="' + c + '" data-fg="' + textOn(c) + '" loading="lazy">' +
+            '<span class="dk-mono">' + esc(ag.monogram) + '</span></span>'
+          : '<span class="dk-ic" style="background:' + c + ';color:' + textOn(c) + '">' + esc(ag.monogram) + '</span>') +
+        '</button>';
     }).join('');
+    bindLogoFallback(box, (holder, img) => {
+      if (!holder || !img) return;
+      if (img.dataset.bg) { holder.style.background = img.dataset.bg; holder.style.color = img.dataset.fg; }
+    });
     box.addEventListener('click', e => {
       const b = e.target.closest('.dk-item');
       if (!b) return;
@@ -629,22 +656,80 @@
       const cur = cursors.find(x => x.ag === ag);
       openPanel(ag, cur ? cur.el : null);
     });
+    setupDockMagnify();
+  }
+
+  /* ---------- Dock 鱼眼放大：高斯距离衰减 + 相互推挤 ---------- */
+  function setupDockMagnify() {
+    const dock = $('.dock');
+    const items = $$('.dock .dock-agents .dk-item, .dock > .dk-item');
+    if (!dock || items.length < 2) return;
+    const SIZE = 40, MAG = .5, SIGMA2 = 2 * 60 * 60;
+    let base = [];
+    const measure = () => {
+      items.forEach(it => { it.style.transform = ''; const ic = it.firstElementChild; if (ic) ic.style.transform = ''; });
+      base = items.map(it => {
+        const r = it.getBoundingClientRect();
+        return r.left + r.width / 2;
+      });
+    };
+    measure();
+    addEventListener('resize', measure);
+    dock.addEventListener('pointermove', e => {
+      if (posterMq.matches) return;
+      const px = e.clientX;
+      const scales = base.map(cx => 1 + MAG * Math.exp(-((px - cx) * (px - cx)) / SIGMA2));
+      items.forEach((it, i) => {
+        let shift = 0;
+        for (let j = 0; j < base.length; j++) {
+          if (j === i) continue;
+          shift += SIZE * (scales[j] - 1) / 2 * (base[i] > base[j] ? 1 : -1);
+        }
+        it.style.transform = 'translateX(' + shift.toFixed(1) + 'px)';
+        const ic = it.firstElementChild;
+        if (ic) ic.style.transform = 'scale(' + scales[i].toFixed(3) + ')';
+      });
+    });
+    dock.addEventListener('pointerleave', () => {
+      items.forEach(it => {
+        it.style.transform = '';
+        const ic = it.firstElementChild;
+        if (ic) ic.style.transform = '';
+      });
+    });
   }
 
   /* ---------- Agent 档案窗口（单窗复用，内容刷新） ---------- */
   const panel = $('#panel');
+  const pLogo = $('#pLogo');
+  const pMono = $('#pMono');
   let activeEl = null;
+  /* 档案 logo：加载失败回退 monogram（单例元素，每次绑定） */
+  function onLogoErr() { pLogo.hidden = true; pMono.hidden = false; }
+  function setPanelLogo(ag) {
+    pLogo.removeEventListener('error', onLogoErr);
+    pLogo.hidden = !ag.logo;
+    pMono.hidden = true;
+    pMono.textContent = ag.monogram;
+    pMono.style.background = desat(ag.color);
+    pMono.style.color = textOn(desat(ag.color));
+    if (ag.logo) {
+      pLogo.addEventListener('error', onLogoErr, { once: true });
+      pLogo.src = ag.logo;
+      pLogo.alt = '';
+    }
+  }
   function openPanel(ag, el) {
     panel.dataset.app = ag.name;
-    $('#pName').textContent = ag.name;
-    $('#pVendor').textContent = ag.vendor;
-    const rows = [
-      ['厂商', ag.vendor],
+    setPanelLogo(ag);
+    $('#pIdName').textContent = ag.name;
+    $('#pIdVendor').textContent = ag.vendor;
+    $('#pRows').innerHTML = [
       ['CU · 桌面控制', ag.cu],
       ['BU · 浏览器控制', ag.bu]
-    ].concat((ag.chips || []).map(x => [x.label, x.value]));
-    $('#pRows').innerHTML = rows.map(([k, v]) =>
-      '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('');
+    ].map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('');
+    $('#pTags').innerHTML = (ag.chips || []).map(x =>
+      '<span class="p-tag">' + esc(x.label) + ' · ' + esc(x.value) + '</span>').join('');
     $('#pTool').textContent = '$ ' + ag.toolcall;
     $('#pTake').textContent = ag.takeaway;
     $('#pLinkReadme').href = ag.links.readme;
@@ -675,14 +760,23 @@
     const g = $('#agentsGrid');
     g.innerHTML = AGENTS.map(ag => {
       const c = desat(ag.color);
+      const head = ag.logo
+        ? '<span class="ag-logo-wrap"><img class="ag-logo" src="' + esc(ag.logo) + '" alt="" data-fb loading="lazy">' +
+          '<span class="ag-logo-fallback" hidden style="background:' + c + ';color:' + textOn(c) + '">' + esc(ag.monogram) + '</span></span>'
+        : '<span class="ag-logo-fallback" style="background:' + c + ';color:' + textOn(c) + '">' + esc(ag.monogram) + '</span>';
       return '<button class="ag-card" type="button" data-slug="' + ag.slug + '">' +
-        '<span class="ag-mono" style="background:' + c + ';color:' + textOn(c) + '">' + esc(ag.monogram) + '</span>' +
+        head +
         '<span class="ag-name">' + esc(ag.name) + '<em>' + esc(ag.vendor) + '</em></span>' +
         '<span class="ag-tool mono">' + esc(ag.toolcall) + '</span>' +
         '<span class="ag-take">' + esc(ag.takeaway) + '</span>' +
         '<span class="ag-more">查看档案 →</span>' +
         '</button>';
     }).join('');
+    bindLogoFallback(g, (holder, img) => {
+      if (!holder || !img) return;
+      const fb = holder.querySelector('.ag-logo-fallback');
+      if (fb) fb.hidden = false;
+    });
     g.addEventListener('click', e => {
       const b = e.target.closest('.ag-card');
       if (!b) return;
@@ -691,14 +785,65 @@
     });
   }
 
-  /* ---------- 暂停控件 / 时钟 / 响应式 ---------- */
+  /* ---------- 暂停控件（菜单栏按钮 + 视图菜单共用） / 时钟 / 响应式 ---------- */
   const animBtn = $('#animToggle');
-  animBtn.addEventListener('click', () => {
-    paused = !paused;
-    body.classList.toggle('is-paused', paused);
-    animBtn.setAttribute('aria-pressed', String(paused));
-    animBtn.title = paused ? '继续动画' : '暂停动画';
-  });
+  const menuAnimItem = $('#menuAnimItem');
+  function setPaused(p) {
+    paused = p;
+    body.classList.toggle('is-paused', p);
+    animBtn.setAttribute('aria-pressed', String(p));
+    animBtn.title = p ? '继续动画' : '暂停动画';
+    if (menuAnimItem) menuAnimItem.textContent = p ? '继续动画' : '暂停动画';
+  }
+  animBtn.addEventListener('click', () => setPaused(!paused));
+
+  /* ---------- 菜单栏下拉（行为真实：hover 高亮 · 点击展开 · 换项即切 · 点击外部/Esc 收起） ---------- */
+  const MB_ACTIONS = {
+    repo: () => window.open('https://github.com/freeall12/computer-use', '_blank', 'noopener'),
+    reports: () => window.open('https://github.com/freeall12/computer-use/tree/main/agents', '_blank', 'noopener'),
+    docs: () => window.open('https://github.com/freeall12/computer-use#readme', '_blank', 'noopener'),
+    issues: () => window.open('https://github.com/freeall12/computer-use/issues', '_blank', 'noopener'),
+    closewin: () => closePanel(),
+    toggleanim: () => setPaused(!paused),
+    restart: () => location.reload()
+  };
+  (function setupMenus() {
+    const triggers = $$('.mb-trigger');
+    let openDrop = null, openTrigger = null;
+    function close() {
+      if (!openDrop) return;
+      openDrop.hidden = true;
+      openTrigger.setAttribute('aria-expanded', 'false');
+      openDrop = null; openTrigger = null;
+    }
+    function open(trigger) {
+      const drop = document.getElementById(trigger.dataset.menu);
+      if (!drop) return;
+      close();
+      drop.hidden = false;
+      drop.style.left = Math.min(trigger.offsetLeft, stage.clientWidth - drop.offsetWidth - 8) + 'px';
+      trigger.setAttribute('aria-expanded', 'true');
+      openDrop = drop; openTrigger = trigger;
+    }
+    triggers.forEach(tg => {
+      tg.addEventListener('click', e => {
+        e.stopPropagation();
+        if (openTrigger === tg) close(); else open(tg);
+      });
+      tg.addEventListener('pointerenter', () => { if (openTrigger && openTrigger !== tg) open(tg); });
+    });
+    $$('.mb-drop .md-item[data-act]').forEach(mi => {
+      mi.addEventListener('click', () => {
+        const act = MB_ACTIONS[mi.dataset.act];
+        close();
+        if (act) act();
+      });
+    });
+    document.addEventListener('pointerdown', e => {
+      if (openDrop && !e.target.closest('.mb-drop') && !e.target.closest('.mb-trigger')) close();
+    });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && openDrop) close(); });
+  })();
 
   const WK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   function tickClock() {
