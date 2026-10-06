@@ -1,6 +1,7 @@
 /* ============================================================
    Agent Computer Use Atlas · app.js
-   12 个 Agent 光标的时间轴引擎 + 打字/点击/拖拽反应 + 详情面板
+   12 个 Agent 光标的时间轴引擎 + 打字/点击/拖拽反应
+   + 窗口聚焦管理 + Dock + 档案检查器窗口
    零依赖 · vanilla JS
    ============================================================ */
 'use strict';
@@ -14,7 +15,6 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   const stage = $('#stage');
-  const fx = $('#fx');
   const body = document.body;
   const CLICK_MS = 620;
 
@@ -57,6 +57,13 @@
     }
   }
 
+  /* 品牌色降饱和：向中性灰混合，仅用于光标徽章 / Dock 图标 / 窄屏卡片 */
+  function desat(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const mix = c => Math.round(c * .5 + 138 * .5);
+    const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
   function textOn(hex) {
     const n = parseInt(hex.slice(1), 16);
     const L = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
@@ -203,17 +210,61 @@
     [90, 14], [93, 42], [52, 50], [24, 58], [86, 62], [10, 36]
   ];
 
+  /* ---------- 窗口聚焦管理（z 序 + 标题栏 active + 菜单栏应用名） ---------- */
+  let zTop = 5;
+  const mbAppName = $('#mbAppName');
+  function setAppName(t) { mbAppName.textContent = t; }
+  function focusWindow(el, name) {
+    $$('.window').forEach(w => w.classList.toggle('active', w === el));
+    zTop = Math.min(zTop + 1, 700);
+    el.style.zIndex = zTop;
+    if (name) setAppName(name);
+  }
+  function blurWindows() {
+    $$('.window').forEach(w => w.classList.remove('active'));
+    setAppName('访达');
+  }
+  function registerWindows() {
+    $$('.window').forEach(w => {
+      w.addEventListener('pointerdown', () => {
+        clearIconSel();
+        focusWindow(w, w.dataset.app || null);
+      });
+    });
+    /* 点击桌面空白处 = 访达 */
+    stage.addEventListener('pointerdown', e => {
+      if (e.target.closest('.window') || e.target.closest('.dock') ||
+          e.target.closest('.cursor') || e.target.closest('.desk-icons')) return;
+      clearIconSel();
+      blurWindows();
+    });
+  }
+
+  /* ---------- 桌面图标：单击选中 · 双击打开 ---------- */
+  function clearIconSel() { $$('.d-icon.selected').forEach(x => x.classList.remove('selected')); }
+  function registerDeskIcons() {
+    $$('.d-icon').forEach(a => {
+      a.addEventListener('click', e => {
+        if (a.classList.contains('selected')) return;   // 已选中 → 放行默认跳转
+        e.preventDefault();
+        clearIconSel();
+        a.classList.add('selected');
+      });
+      a.addEventListener('dblclick', () => { window.open(a.href, '_blank', 'noopener'); });
+    });
+  }
+
   /* ---------- 构建光标 DOM ---------- */
   const cursors = [];
   function buildCursors() {
     const layer = $('#cursors');
     AGENTS.forEach((ag, i) => {
       const el = document.createElement('div');
+      const c = desat(ag.color);
       el.className = 'cursor';
       el.dataset.slug = ag.slug;
-      el.title = '点击查看 ' + ag.name + ' 档案';
-      el.style.setProperty('--c', ag.color);
-      el.style.setProperty('--ct', textOn(ag.color));
+      el.style.setProperty('--c', c);
+      el.style.setProperty('--ct', textOn(c));
       el.setAttribute('role', 'button');
       el.setAttribute('tabindex', '0');
       el.setAttribute('aria-label', '查看 ' + ag.name + '（' + ag.vendor + '）的逆向档案');
@@ -226,7 +277,7 @@
 
       const spawn = SPAWNS[i % SPAWNS.length];
       const sr = stage.getBoundingClientRect();
-      const c = {
+      const cur = {
         ag, el,
         steps: ROUTES[ag.slug] || ROUTES._default,
         idx: 0, phase: 'pre', delay: 300 + i * 420,
@@ -237,27 +288,18 @@
         seed: rand(0, 6.28),
         hovered: false, dragCtx: null
       };
-      cursors.push(c);
+      cursors.push(cur);
 
       el.addEventListener('click', e => { e.stopPropagation(); openPanel(ag, el); });
       el.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPanel(ag, el); }
       });
-      el.addEventListener('pointerenter', () => { c.hovered = true; });
-      el.addEventListener('pointerleave', () => { c.hovered = false; });
+      el.addEventListener('pointerenter', () => { cur.hovered = true; });
+      el.addEventListener('pointerleave', () => { cur.hovered = false; });
     });
   }
 
-  /* ---------- 反应：涟漪 + 目标窗口真实反馈 ---------- */
-  function spawnRipple(x, y, color) {
-    const d = document.createElement('i');
-    d.className = 'ripple';
-    d.style.left = x + 'px';
-    d.style.top = y + 'px';
-    d.style.setProperty('--c', color);
-    fx.appendChild(d);
-    setTimeout(() => d.remove(), 750);
-  }
+  /* ---------- 反应：目标窗口真实反馈 ---------- */
   function pressEl(el) {
     if (!el) return;
     el.classList.add('pressed');
@@ -349,7 +391,6 @@
         c.dur = CLICK_MS;
         c.act = true;
         c.el.classList.add('pressing');
-        spawnRipple(c.pos.x, c.pos.y, c.ag.color);
         const hit = s.hit;
         setTimeout(() => react(hit), 110);
         break;
@@ -570,55 +611,78 @@
     return { toggle() { win.classList.toggle('playing'); } };
   })();
 
-  /* ---------- 详情面板 ---------- */
-  const panel = $('#panel'), scrim = $('#scrim');
+  /* ---------- Dock：仓库 / 文档 · 12 Agent · 访问 GitHub ---------- */
+  function buildDock() {
+    const box = $('#dockAgents');
+    box.innerHTML = AGENTS.map(ag => {
+      const c = desat(ag.color);
+      return '<button class="dk-item" type="button" data-slug="' + ag.slug + '"' +
+        ' data-tip="' + esc(ag.name) + '" aria-label="聚焦 ' + esc(ag.name) + ' 并打开档案">' +
+        '<span class="dk-ic" style="background:' + c + ';color:' + textOn(c) + '">' +
+        esc(ag.monogram) + '</span></button>';
+    }).join('');
+    box.addEventListener('click', e => {
+      const b = e.target.closest('.dk-item');
+      if (!b) return;
+      const ag = AGENTS.find(a => a.slug === b.dataset.slug);
+      if (!ag) return;
+      const cur = cursors.find(x => x.ag === ag);
+      openPanel(ag, cur ? cur.el : null);
+    });
+  }
+
+  /* ---------- Agent 档案窗口（单窗复用，内容刷新） ---------- */
+  const panel = $('#panel');
   let activeEl = null;
   function openPanel(ag, el) {
-    panel.style.setProperty('--c', ag.color);
-    const mono = $('#pMono');
-    mono.textContent = ag.monogram;
-    mono.style.background = ag.color;
-    mono.style.color = textOn(ag.color);
+    panel.dataset.app = ag.name;
     $('#pName').textContent = ag.name;
     $('#pVendor').textContent = ag.vendor;
-    $('#pCu').textContent = ag.cu;
-    $('#pBu').textContent = ag.bu;
+    const rows = [
+      ['厂商', ag.vendor],
+      ['CU · 桌面控制', ag.cu],
+      ['BU · 浏览器控制', ag.bu]
+    ].concat((ag.chips || []).map(x => [x.label, x.value]));
+    $('#pRows').innerHTML = rows.map(([k, v]) =>
+      '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('');
     $('#pTool').textContent = '$ ' + ag.toolcall;
     $('#pTake').textContent = ag.takeaway;
-    $('#pChips').innerHTML = (ag.chips || []).map(x =>
-      '<span class="p-chip"><em>' + esc(x.label) + '</em>' + esc(x.value) + '</span>').join('');
     $('#pLinkReadme').href = ag.links.readme;
     $('#pLinkSource').href = ag.links.source;
-    panel.classList.add('open');
+    if (!panel.classList.contains('open')) panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
-    scrim.classList.add('show');
-    $('#hint').classList.add('gone');
+    clearIconSel();
+    focusWindow(panel, ag.name);
     if (activeEl) activeEl.classList.remove('active');
     activeEl = el || null;
     if (el) el.classList.add('active');
-    panel.scrollTop = 0;
+    $('.p-body', panel).scrollTop = 0;
   }
   function closePanel() {
+    if (!panel.classList.contains('open')) return;
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
-    scrim.classList.remove('show');
     if (activeEl) { activeEl.classList.remove('active'); activeEl = null; }
   }
   $('#pClose').addEventListener('click', closePanel);
-  scrim.addEventListener('click', closePanel);
-  addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+  addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePanel();
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'w') { e.preventDefault(); closePanel(); }
+  });
 
   /* ---------- 窄屏卡片列表 ---------- */
   function buildGrid() {
     const g = $('#agentsGrid');
-    g.innerHTML = AGENTS.map(ag =>
-      '<button class="ag-card" type="button" data-slug="' + ag.slug + '" style="--c:' + ag.color + '">' +
-      '<span class="ag-mono" style="background:' + ag.color + ';color:' + textOn(ag.color) + '">' + esc(ag.monogram) + '</span>' +
-      '<span class="ag-name">' + esc(ag.name) + '<em>' + esc(ag.vendor) + '</em></span>' +
-      '<span class="ag-tool mono">' + esc(ag.toolcall) + '</span>' +
-      '<span class="ag-take">' + esc(ag.takeaway) + '</span>' +
-      '<span class="ag-more">查看档案 →</span>' +
-      '</button>').join('');
+    g.innerHTML = AGENTS.map(ag => {
+      const c = desat(ag.color);
+      return '<button class="ag-card" type="button" data-slug="' + ag.slug + '">' +
+        '<span class="ag-mono" style="background:' + c + ';color:' + textOn(c) + '">' + esc(ag.monogram) + '</span>' +
+        '<span class="ag-name">' + esc(ag.name) + '<em>' + esc(ag.vendor) + '</em></span>' +
+        '<span class="ag-tool mono">' + esc(ag.toolcall) + '</span>' +
+        '<span class="ag-take">' + esc(ag.takeaway) + '</span>' +
+        '<span class="ag-more">查看档案 →</span>' +
+        '</button>';
+    }).join('');
     g.addEventListener('click', e => {
       const b = e.target.closest('.ag-card');
       if (!b) return;
@@ -632,14 +696,17 @@
   animBtn.addEventListener('click', () => {
     paused = !paused;
     body.classList.toggle('is-paused', paused);
-    animBtn.textContent = paused ? '▶ 播放动画' : '⏸ 暂停动画';
     animBtn.setAttribute('aria-pressed', String(paused));
+    animBtn.title = paused ? '继续动画' : '暂停动画';
   });
 
+  const WK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   function tickClock() {
     const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
     $('#mbTime').textContent =
-      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + WK[d.getDay()] + ' ' + hh + ':' + mm;
   }
 
   posterMq.addEventListener('change', e => { if (!e.matches) startEngine(); });
@@ -654,10 +721,14 @@
   async function init() {
     AGENTS = await loadData();
     if (!AGENTS.length) return;
+    registerWindows();
+    registerDeskIcons();
     buildBars();
     buildKeyboard();
     buildCursors();
+    buildDock();
     buildGrid();
+    focusWindow($('#win-term'), '终端');            // 初始聚焦终端窗口
     if (reduced) {
       Term.renderStatic();
       Notes.renderStatic();
