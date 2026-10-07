@@ -1,0 +1,59 @@
+# Agent Computer Use Atlas — https://freeall12.github.io/computer-use/
+# 对所有爬虫开放；本站为纯静态 HTML，核心内容无需 JS 即可读取。
+
+User-agent: *
+Allow: /
+
+# —— 搜索引擎（默认已允许，显式列出以示欢迎）——
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# —— AI 生成引擎爬虫（GEO：欢迎抓取与引用）——
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+# 面向 AI 引擎的站点内容地图（llmstxt.org 规范）
+# llms-full.txt 为同一内容的完整版
+Sitemap: https://freeall12.github.io/computer-use/sitemap.xml

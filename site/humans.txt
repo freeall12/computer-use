@@ -1,0 +1,20 @@
+/* TEAM */
+Author: freeall12
+GitHub: https://github.com/freeall12
+Location: 中国
+Research: 12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向
+
+/* THANKS */
+被逆向的 12 家产品团队（ZCode / Codex / Claude Code / Cursor / MiniMax / Synara / Kimi / Qoder / Grok / Devin / Goose / MiMo）
+开源项目：Cua AI (trycua)、Peekaboo (steipete)、qwen-code
+
+/* SITE */
+Site Name: Agent Computer Use Atlas
+Site URL: https://freeall12.github.io/computer-use/
+Repository: https://github.com/freeall12/computer-use
+Last Update: 2026-10-07
+Standards: HTML5 / CSS3 / Vanilla JavaScript（零依赖）
+Components: GitHub Pages
+Doctype: HTML5
+Language: 中文（zh-CN）
+Tools: ZCode、Google Chrome Headless、sips

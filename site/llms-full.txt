@@ -1,0 +1,103 @@
+# Agent Computer Use Atlas
+
+> 对 12 个主流 Coding Agent 在同一台 macOS 机器上的桌面控制（Computer Use / CU）与浏览器控制（Browser Use / BU）能力做只读静态逆向的开源研究。本文件为完整内容版（llms-full.txt）；精简链接地图见 llms.txt。
+
+- 在线主站：<https://freeall12.github.io/computer-use/>
+- 源仓库：<https://github.com/freeall12/computer-use>
+- 分析基线：2026-10-06，macOS arm64，各产品当日本机安装版本
+- 方法：只读静态分析（打包 JS、原生二进制符号、随包文档、配置与日志）；未运行被分析对象、未抓包
+- 许可：MIT；不含任何专有源码、二进制或凭据，不含 DRM 规避
+
+## 这是什么
+
+Agent Computer Use Atlas 对 12 个主流 Coding Agent 的 CU/BU 能力栈做横向对比研究：观察机制、动作注入、安全模型、谱系关系；同时是一份工程设计模式库（自己做 CU/BU Agent 需要的 20 个可复用模式）与一套可复现的逆向方法论。它不是各厂商的官方文档，与各厂商无关（独立研究）；不是运行时行为测试——所有「本机可用性」结论均标注分析时点。
+
+## 12 个 Agent 分册
+
+### ZCode（智谱）
+
+Computer Use：14 工具 · ax_native Helper（AX+CGEvent）。Browser Use：内嵌 WebView · 单一 js 工具动态面。结论：安全加固最重的自研派——CU SDK 逐字对齐 Codex @oai/cua（0.2.4），stateId / possibly_sent / controller lease / kill switch 为事故驱动的自研加固。分册：<https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md>
+
+### Codex（OpenAI）
+
+Computer Use：@oai/cua + Swift Sky 服务 · js REPL 三工具。Browser Use：iab · 扩展 · 云 · mcpapps 四后端。结论：一个 REPL 全包的极简派；四层安全模型（OS→服务端审批→策略 prompt→熔断）+ 锁屏守护。分册：<https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md>
+
+### Claude Code（Anthropic）
+
+Computer Use：~40 工具 · 三控制域 · Swift+Rust 双层。Browser Use：Chrome 扩展 + native messaging。结论：12 家中工具面拆得最细；tier 权限 + teach mode + 独占锁 + Esc 急停。分册：<https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md>
+
+### Cursor（Anysphere）
+
+Computer Use：MCP provider · 16 工具 · Swift sidecar。Browser Use：内嵌 webview 合成 DOM 事件。结论：白牌代工的源头——Grok Bot 桌面端即其变体；data-cursor-ref 引用机制 + CDP 拒绝列表。分册：<https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md>
+
+### MiniMax Code（MiniMax）
+
+Computer Use：trycua cua-driver 0.22.1 · 17 工具。Browser Use：WebContentsView + CDP · 24 action。结论：开源驱动 + 协议兼容的务实派；generation fencing 并发防护，无任意 JS。分册：<https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md>
+
+### Synara（独立开发者）
+
+Computer Use：cua-driver 0.28.2 patched · 33 工具。Browser Use：面板 CDP + cua CDP + cookie 导入。结论：12 家中安全工程最重——前台意图授权、Escape 物理急停。分册：<https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md>
+
+### Kimi Code（月之暗面）
+
+Computer Use：KimiCU.app 常驻（launchd）· SkyLight+SLS 签名事件。Browser Use：webbridge 扩展 + 内嵌 43 操作。结论：后台不抢焦点的代表——窗口全遮挡也能落键；verify_after 三态校验。分册：<https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md>
+
+### Qoder（阿里巴巴）
+
+Computer Use：自研 Swift Runtime · UDS+token 注册表。Browser Use：16 工具钉死 chrome-devtools-mcp 基线。结论：node_repl 内核确证迁自 qwen-code（UPSTREAM.md，Apache-2.0）；per-app 审批 + Record&Replay。分册：<https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md>
+
+### Grok Bot（xAI）
+
+Computer Use：16 工具 catalog 内嵌 · Swift Helper（Anysphere 代工换牌，TeamID DCNK4UB866 同 Cursor）。Browser Use：云端 browser_subagent + cookie 逐 origin 审批导入。结论：白牌供应链实锤；「错误即指令」协议（16 错误码→四档行为建议）。分册：<https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md>
+
+### Devin（Cognition）
+
+Computer Use：云 VM computer 工具 · 1024×768 循环，本地 CLI 零 GUI。Browser Use：云 Interactive Browser（CDP :29229）+ ACP browser_preview 投影。结论：全云端执行、本地投影的基线样本。分册：<https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md>
+
+### Goose（Block）
+
+Computer Use：computer_control 单工具纯透传 Peekaboo CLI（brew 自动安装）。Browser Use：零内置，五个第三方浏览器 MCP 外挂。结论：执行层完全外包的唯一样本（Apache-2.0）；AX 叠加标注是 12 家中唯一 SoM 变体。分册：<https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md>
+
+### MiMo（小米）
+
+Computer Use：自研 sky-mac · js REPL 门面（@mimo/sky 10 方法）· 锁屏操作。Browser Use：MV3 扩展 + chrome.debugger CDP（四后端）。结论：对标 Codex 最明示的清洁室复刻（包内 README 自述 inspired by Codex sky）；独家锁屏内操作（SecurityAgentPlugins + 1–20s 一次性租约）。分册：<https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md>
+
+## 核心发现 TL;DR
+
+1. 12 家分化成四种执行基线：本地 Helper/驱动执行（9 家——Helper 持 TCC + 本地 IPC 鉴权 + 工具面隔离原生 API）；全云端执行、本地投影（Devin）；执行层外包透传（Goose）；完全无原生能力（Grok CLI）。
+2. 白牌供应链出现了：Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌——签名 TeamID DCNK4UB866 与 Cursor 完全一致、asar 包名 sand、homepage cursor.com、sidecar CDN downloads.cursor.com、sand-cua 模型同名、JS 残留 CUCursorService。
+3. 四条「公开底座」被复用：Cua AI（trycua）——MiniMax/Synara 内嵌 cua-driver、Kimi 公开致谢其 SLS 签名键盘机制；qwen-code——Qoder 内核 UPSTREAM.md 确证迁自（Apache-2.0）；Peekaboo（MIT）——Goose 全部桌面执行层；Codex sky——MiMo 自述 inspired by，明示清洁室复刻。
+4. ZCode 的 CU SDK 逐字对齐 Codex @oai/cua（0.2.4）（SDK 头注释自述），但 stateId/frameId/possibly_sent/controller lease/kill switch 是事故驱动的自研加固。
+5. 观察以 AX diff 为主 + BU 侧不透明 ref 共识：Goose（经 Peekaboo see --annotate）是 12 家中唯一在 CU 主路径使用「截图叠元素编号」的——标注来自 AX 树，是 SoM 变体而非经典 set-of-marks；防句柄漂移五级方案光谱：流程纪律 → 双基线台账 → snapshot_id 绑定 → 描述校验 → verify_after 三态。
+6. 后台定向输入（不抢焦点）四路线：AX 写值、窗口相对事件路由、SLS 签名事件认证封包（Kimi）、SkyLight/CGS 私有 API（Claude/MiMo/Grok）。
+7. BU 三架构：内嵌 WebView、真浏览器扩展、云端浏览器各有实例；极值两端是 Grok Bot（本机零浏览器 API）与 Goose（零内置、五 MCP 外挂）；成熟产品走向「多后端 + 能力广告」统一对象面。
+8. MCP 是万能挂载面，八种形态；共同点是「未启用 = 工具不存在」的 fail-closed 门控。安全模型四层共性 + 三个变体：「错误即指令」协议、通用权限伞、锁屏子系统两条相反路线（Codex 守护暂停 vs MiMo 授权插件 + 一次性租约）；防重放与「投递≠生效」验证回读是最高共识。
+
+## 研究文档地图
+
+- 12 份逆向分册（每家一册，含 48 份文档、7400+ 行证据链）：<https://github.com/freeall12/computer-use/tree/main/agents>
+- 12 维能力矩阵总表：<https://github.com/freeall12/computer-use/blob/main/comparison/capability-matrix.md>
+- 20 个可复用设计模式：<https://github.com/freeall12/computer-use/blob/main/reusable/patterns.md>
+- 逆向方法论：<https://github.com/freeall12/computer-use/blob/main/docs/methodology.md>
+- 12 套可运行参考实现：<https://github.com/freeall12/computer-use/tree/main/source>
+- MIT License：<https://github.com/freeall12/computer-use/blob/main/LICENSE>
+
+## FAQ
+
+**这项研究覆盖了哪 12 个 Agent？**
+ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code（MiniMax）、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）。基线为 2026-10-06 的 macOS arm64 本机安装版本。
+
+**哪些 Agent 用了开源 Cua AI（trycua）底座？**
+MiniMax Code 内嵌 trycua cua-driver 0.22.1（17 个 CU 工具）；Synara 使用 cua-driver 0.28.2 patched（33 个 CU 工具）；Kimi Code 公开致谢了 Cua AI 的 SLS 签名键盘机制。其余多数为自研 Helper 或驱动。
+
+**为什么说 Grok Bot 和 Cursor 同源？**
+Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌：签名 TeamID「DCNK4UB866」与 Cursor 完全一致、sidecar 走 downloads.cursor.com CDN、asar 包名 sand、JS 残留 CUCursorService、模型名同为 sand-cua。
+
+**12 家 Agent 的 Computer Use 有哪几种执行基线？**
+四种：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。
+
+**谁复制了谁？有哪些谱系关系实锤？**
+ZCode CU SDK 自述逐字对齐 Codex @oai/cua 0.2.4；Qoder node_repl 内核确证迁自 qwen-code（Apache-2.0）；MiMo 自述受 Codex sky 启发，是明示的清洁室复刻；Goose 执行层来自 Peekaboo（MIT）；Grok Bot 由 Cursor 母公司代工。
+
+**研究内容可以复用吗？**
+可以，MIT 许可开源。含 48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现；不含任何专有源码、二进制或凭据，不含 DRM 规避。

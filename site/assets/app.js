@@ -6,6 +6,8 @@
    ============================================================ */
 'use strict';
 (() => {
+  /* JS 可用标记：隐藏静态可索引内容层（SEO/GEO progressive enhancement，数据失败时回退显示） */
+  document.documentElement.classList.add('js-on');
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -73,7 +75,7 @@
   /* ---------- 真实 logo：插入 img，加载失败回退 monogram ---------- */
   function logoImg(ag, cls) {
     if (!ag.logo) return '';
-    return '<img class="' + cls + '" src="' + esc(ag.logo) + '" alt="" loading="lazy">';
+    return '<img class="' + cls + '" src="' + esc(ag.logo) + '" alt="' + esc(ag.name) + ' logo" loading="lazy">';
   }
   function bindLogoFallback(root, onFail) {
     $$('img[data-fb]', root).forEach(img => {
@@ -716,7 +718,7 @@
     if (ag.logo) {
       pLogo.addEventListener('error', onLogoErr, { once: true });
       pLogo.src = ag.logo;
-      pLogo.alt = '';
+      pLogo.alt = ag.name + ' logo';
     }
   }
   function openPanel(ag, el) {
@@ -865,7 +867,11 @@
   /* ---------- 启动 ---------- */
   async function init() {
     AGENTS = await loadData();
-    if (!AGENTS.length) return;
+    if (!AGENTS.length) {
+      /* 数据失败：恢复显示静态内容层，保证页面仍可读 */
+      document.documentElement.classList.remove('js-on');
+      return;
+    }
     registerWindows();
     registerDeskIcons();
     buildBars();

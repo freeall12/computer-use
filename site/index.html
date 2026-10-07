@@ -3,15 +3,140 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Computer Use Atlas · 12 个 AI Agent 的桌面控制能力图谱</title>
-<meta name="description" content="12 个主流 Coding Agent 的桌面控制与浏览器控制能力逆向图谱：交互式桌面舞台、多 Agent 光标实时作业演示、每家 Agent 的 CU/BU 架构速览与完整逆向报告链接。">
+<title>Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱</title>
+<meta name="description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta name="keywords" content="Computer Use, Browser Use, Coding Agent, AI Agent, 逆向分析, reverse engineering, agent tools, MCP, CUA, ZCode, Codex, Claude Code, Cursor, MiniMax, Kimi, Qoder, Grok, Devin, Goose, MiMo">
+<meta name="author" content="freeall12">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1e1e20">
+<link rel="canonical" href="https://freeall12.github.io/computer-use/">
+<!-- Open Graph -->
+<meta property="og:title" content="Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱">
+<meta property="og:description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://freeall12.github.io/computer-use/">
+<meta property="og:image" content="https://freeall12.github.io/computer-use/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Agent Computer Use Atlas：12 个 Agent 光标在同一块 macOS 桌面上作业的交互式图谱主页截图">
+<meta property="og:site_name" content="Agent Computer Use Atlas">
+<meta property="og:locale" content="zh_CN">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱">
+<meta name="twitter:description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta name="twitter:image" content="https://freeall12.github.io/computer-use/assets/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232b2b2e'/%3E%3Cpath d='M9 6l0 16.4 4.6-4 2.9 6.8 3-1.3-2.9-6.7 5.9-.3z' fill='%23f5f5f7'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
+<!-- JSON-LD 结构化数据：WebSite + Dataset + FAQPage -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://freeall12.github.io/computer-use/#website",
+      "url": "https://freeall12.github.io/computer-use/",
+      "name": "Agent Computer Use Atlas",
+      "alternateName": "Agent Atlas",
+      "description": "12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱：交互式桌面演示与静态研究内容。",
+      "inLanguage": "zh-CN",
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://github.com/freeall12",
+        "name": "freeall12",
+        "url": "https://github.com/freeall12"
+      }
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://freeall12.github.io/computer-use/#dataset",
+      "name": "12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向数据集",
+      "description": "基于 2026-10-06 macOS arm64 本机安装版本的只读静态逆向研究：12 个 Agent 分册（48 份文档、7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现。回答三个问题：它们怎么实现的？谁抄谁？我们能学到什么？",
+      "url": "https://github.com/freeall12/computer-use",
+      "sameAs": "https://freeall12.github.io/computer-use/",
+      "keywords": [
+        "Computer Use", "Browser Use", "Coding Agent", "AI Agent",
+        "逆向工程", "reverse engineering", "agent tools", "MCP", "CUA",
+        "UI automation", "ZCode", "Codex", "Claude Code", "Cursor",
+        "MiniMax", "Synara", "Kimi", "Qoder", "Grok", "Devin", "Goose", "MiMo"
+      ],
+      "license": "https://github.com/freeall12/computer-use/blob/main/LICENSE",
+      "creator": { "@id": "https://github.com/freeall12" },
+      "temporalCoverage": "2026-10-06",
+      "datePublished": "2026-10-06",
+      "dateModified": "2026-10-07",
+      "isAccessibleForFree": true,
+      "inLanguage": "zh-CN",
+      "spatialCoverage": {
+        "@type": "Place",
+        "name": "macOS arm64（单一对照环境）"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://freeall12.github.io/computer-use/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "这项研究覆盖了哪 12 个 Agent？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code（MiniMax）、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）。分析基线为 2026-10-06 的 macOS arm64 本机安装版本，方法为只读静态逆向（打包 JS、原生二进制符号、随包文档、配置与日志），未运行被分析对象、未抓包。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "哪些 Agent 用了开源 Cua AI（trycua）底座？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "MiniMax Code 内嵌 trycua cua-driver 0.22.1（17 个 CU 工具）；Synara 使用 cua-driver 0.28.2 patched（33 个 CU 工具）；Kimi Code 公开致谢了 Cua AI 的 SLS 签名键盘机制。其余多数 Agent 为自研 Helper 或驱动：如 ZCode 的 ax_native Helper、Codex 的 Swift Sky 服务、Qoder 的自研 Swift Runtime。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "为什么说 Grok Bot 和 Cursor 同源？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "逆向证据显示 Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌：代码签名 TeamID「DCNK4UB866」与 Cursor 完全一致、sidecar 走 downloads.cursor.com CDN、asar 包名为 sand、JS 残留 CUCursorService、模型名同为 sand-cua。这说明 CU/BU 赛道开始出现代工分工，安全模型随代工继承。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "12 家 Agent 的 Computer Use 有哪几种执行基线？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "四种：① 本地 Helper/驱动执行（9 家，Helper 持 TCC 权限 + 本地 IPC 鉴权 + 工具面隔离原生 API，其中 7 家独立 Helper 进程）；② 全云端执行、本地投影（Devin：工具在云 VM，本地只留读写检索与能力位）；③ 执行层外包透传（Goose：单工具透传第三方 Peekaboo CLI）；④ 完全无原生能力（Grok CLI：16 工具纯 coding，完整版才有原生 CU/BU）。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "谁复制了谁？有哪些谱系关系实锤？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ZCode 的 CU SDK 头注释自述逐字对齐 Codex @oai/cua（0.2.4）；Qoder 的 node_repl 内核经 UPSTREAM.md 确证迁自 qwen-code（Apache-2.0）；MiMo 的包内 README 自述受 Codex Desktop sky 执行器启发，是明示的清洁室复刻；Goose 的全部桌面执行层来自 Peekaboo（MIT）；Grok Bot 由 Cursor 母公司 Anysphere 代工换牌。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "研究内容可以复用吗？包含什么？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "可以。仓库以 MIT 许可开源，含 48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵（comparison/capability-matrix.md）、20 个可复用设计模式（reusable/patterns.md，如独立 Helper 进程、防重放、控制租约、MCP 挂载、错误即指令协议）与 12 套可运行参考实现（source/）。不含任何专有源码、二进制或凭据，不含 DRM 规避。"
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
+<!-- 语义锚点：全页唯一 h1（视觉隐藏，供爬虫 / 读屏 / 无 JS 场景识别项目名） -->
+<h1 class="vh">Agent Computer Use Atlas：12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱</h1>
 <a class="skip" href="#stage">跳到主内容</a>
+<noscript><p class="seo-note">当前浏览器未启用 JavaScript：交互式桌面动画不可用，但下方静态内容层包含本项目全部核心内容（12 个 Agent 速览、核心发现、常见问题与资源链接），可正常阅读。</p></noscript>
 
 <!-- ═══ 桌面 ═══ -->
 <main class="stage" id="stage" aria-label="交互式桌面舞台：多 Agent 光标在虚拟桌面上作业">
@@ -155,6 +280,115 @@
     <a class="dk-label" href="https://github.com/freeall12/computer-use" target="_blank" rel="noopener">访问 GitHub</a>
   </nav>
 </main>
+
+<!-- ═══ 静态可索引内容层（progressive enhancement）═══
+     内容真实存在于 HTML：无 JS 时完整可读；JS 启动后由 html.js-on 规则隐藏。
+     服务对象：搜索引擎爬虫（首波抓取）、AI 生成引擎（GPTBot/PerplexityBot 等）、纯阅读器。 -->
+<section id="seo-content" class="seo-layer" aria-label="项目静态内容">
+  <h2>这是什么：一项对 12 个 Coding Agent 桌面控制能力的只读逆向研究</h2>
+  <p><strong>Agent Computer Use Atlas</strong> 是对 12 个主流 Coding Agent 在<strong>同一台 macOS 机器上</strong>的桌面控制（Computer Use / CU）与浏览器控制（Browser Use / BU）能力所做的只读静态逆向研究：48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现，回答三个问题——<strong>它们怎么实现的？谁抄谁？我们能学到什么？</strong>分析基线为 2026-10-06（macOS arm64，各产品当日本机安装版本）。在线主站：<a href="https://freeall12.github.io/computer-use/">https://freeall12.github.io/computer-use/</a>，源仓库：<a href="https://github.com/freeall12/computer-use">github.com/freeall12/computer-use</a>。</p>
+
+  <h2>12 个 Agent 速览（名字 · 厂商 · CU/BU 能力一句话）</h2>
+  <article class="seo-agent">
+    <h3>ZCode（智谱）</h3>
+    <p><strong>Computer Use：</strong>14 工具 · ax_native Helper（AX+CGEvent）。<strong>Browser Use：</strong>内嵌 WebView · 单一 js 工具动态面。结论：安全加固最重的自研派——CU SDK 逐字对齐 Codex @oai/cua，stateId / possibly_sent / controller lease / kill switch 为事故驱动的自研加固。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/zcode">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Codex（OpenAI）</h3>
+    <p><strong>Computer Use：</strong>@oai/cua + Swift Sky 服务 · js REPL 三工具。<strong>Browser Use：</strong>iab · 扩展 · 云 · mcpapps 四后端。结论：一个 REPL 全包的极简派，四层安全模型（OS→服务端审批→策略 prompt→熔断）+ 锁屏守护。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/codex">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Claude Code（Anthropic）</h3>
+    <p><strong>Computer Use：</strong>~40 工具 · 三控制域 · Swift+Rust 双层。<strong>Browser Use：</strong>Chrome 扩展 + native messaging。结论：12 家中工具面拆得最细，tier 权限 + teach mode + 独占锁。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/claude-code">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Cursor（Anysphere）</h3>
+    <p><strong>Computer Use：</strong>MCP provider · 16 工具 · Swift sidecar。<strong>Browser Use：</strong>内嵌 webview 合成 DOM 事件。结论：白牌代工的源头——Grok Bot 桌面端即其变体（同一签名 TeamID）。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/cursor">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>MiniMax Code（MiniMax）</h3>
+    <p><strong>Computer Use：</strong>trycua cua-driver 0.22.1 · 17 工具。<strong>Browser Use：</strong>WebContentsView + CDP · 24 action。结论：开源驱动 + 协议兼容的务实派，generation fencing 并发防护。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/minimax-code">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Synara（独立开发者）</h3>
+    <p><strong>Computer Use：</strong>cua-driver 0.28.2 patched · 33 工具。<strong>Browser Use：</strong>面板 CDP + cua CDP + cookie 导入。结论：12 家中安全工程最重——前台意图授权、Escape 物理急停。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/synara">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Kimi Code（月之暗面）</h3>
+    <p><strong>Computer Use：</strong>KimiCU.app 常驻 · SkyLight+SLS 签名事件。<strong>Browser Use：</strong>webbridge 扩展 + 内嵌 43 操作。结论：后台不抢焦点的代表——窗口全遮挡也能落键，verify_after 三态校验。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/kimi-code">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Qoder（阿里巴巴）</h3>
+    <p><strong>Computer Use：</strong>自研 Swift Runtime · UDS+token 注册表。<strong>Browser Use：</strong>16 工具钉死 chrome-devtools-mcp 基线。结论：内核确证迁自 qwen-code（UPSTREAM.md 实锤），per-app 审批 + Record&amp;Replay。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/qoder">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Grok Bot（xAI）</h3>
+    <p><strong>Computer Use：</strong>16 工具 catalog 内嵌 · Swift Helper（Anysphere 代工换牌）。<strong>Browser Use：</strong>云端 browser_subagent + cookie 审批导入。结论：白牌供应链实锤——签名 TeamID「DCNK4UB866」与 Cursor 完全一致，「错误即指令」协议。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/grok">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Devin（Cognition）</h3>
+    <p><strong>Computer Use：</strong>云 VM computer · 1024×768 循环。<strong>Browser Use：</strong>云 Interactive Browser · CDP :29229。结论：全云端执行、本地投影的基线样本，本地 CLI 零 GUI。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/devin">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Goose（Block）</h3>
+    <p><strong>Computer Use：</strong>computer_control 纯透传 Peekaboo CLI。<strong>Browser Use：</strong>零内置 · 五个 MCP 外挂。结论：执行层完全外包的唯一样本（Apache-2.0），AX 叠加标注是 12 家中唯一 SoM 变体。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/goose">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>MiMo（小米）</h3>
+    <p><strong>Computer Use：</strong>自研 sky-mac · js REPL 门面 · 锁屏操作。<strong>Browser Use：</strong>MV3 扩展 + chrome.debugger CDP。结论：对标 Codex 最明示的清洁室复刻（包内 README 自述 inspired by Codex sky），独家支持锁屏内操作。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/mimo">参考源码</a></p>
+  </article>
+
+  <h2>核心发现 TL;DR（8 条）</h2>
+  <ol>
+    <li><strong>四种执行基线</strong>：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。</li>
+    <li><strong>白牌供应链出现了</strong>：Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌，签名 TeamID 与 Cursor 完全一致，安全模型随代工继承。</li>
+    <li><strong>四条公开底座被复用</strong>：Cua AI（MiniMax/Synara 内嵌 cua-driver、Kimi 致谢其键盘机制）、qwen-code（Qoder 内核确证迁自）、Peekaboo（Goose 全部桌面执行层）、Codex sky（MiMo 明示清洁室复刻）。</li>
+    <li><strong>ZCode 的 CU SDK 逐字对齐 Codex @oai/cua（0.2.4）</strong>，但 stateId / frameId / possibly_sent / controller lease / kill switch 是事故驱动的自研加固。</li>
+    <li><strong>观察以 AX diff 为主</strong>：Goose 是 12 家中唯一在 CU 主路径使用「截图叠元素编号」的（基于 AX 树的 SoM 变体）；防句柄漂移有五级方案光谱。</li>
+    <li><strong>后台定向输入（不抢焦点）四路线</strong>：AX 写值、窗口相对事件路由、SLS 签名事件封包（Kimi）、SkyLight/CGS 私有 API（Claude / MiMo / Grok）。</li>
+    <li><strong>Browser Use 三架构</strong>：内嵌 WebView、真浏览器扩展、云端浏览器各有实例；成熟产品走向「多后端 + 能力广告」统一对象面。</li>
+    <li><strong>MCP 是万能挂载面（八种形态）</strong>：共同点是「未启用 = 工具不存在」的 fail-closed 门控；防重放与「投递≠生效」验证回读是安全模型的最高共识。</li>
+  </ol>
+
+  <h2>常见问题（FAQ）</h2>
+  <h3>这项研究覆盖了哪 12 个 Agent？</h3>
+  <p>ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）。分析基线为 2026-10-06 的 macOS arm64 本机安装版本，方法为只读静态逆向，未运行被分析对象、未抓包。</p>
+  <h3>哪些 Agent 用了开源 Cua AI（trycua）底座？</h3>
+  <p>MiniMax Code 内嵌 trycua cua-driver 0.22.1（17 个 CU 工具）；Synara 使用 cua-driver 0.28.2 patched（33 个 CU 工具）；Kimi Code 公开致谢了 Cua AI 的 SLS 签名键盘机制。其余多数为自研 Helper 或驱动。</p>
+  <h3>为什么说 Grok Bot 和 Cursor 同源？</h3>
+  <p>Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌：签名 TeamID「DCNK4UB866」与 Cursor 完全一致、sidecar 走 downloads.cursor.com CDN、asar 包名 sand、JS 残留 CUCursorService、模型名同为 sand-cua。</p>
+  <h3>12 家 Agent 的 Computer Use 有哪几种执行基线？</h3>
+  <p>四种：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。</p>
+  <h3>谁复制了谁？有哪些谱系关系实锤？</h3>
+  <p>ZCode CU SDK 自述逐字对齐 Codex @oai/cua 0.2.4；Qoder node_repl 内核确证迁自 qwen-code（Apache-2.0）；MiMo 自述受 Codex sky 启发，是明示的清洁室复刻；Goose 执行层来自 Peekaboo（MIT）；Grok Bot 由 Cursor 母公司代工。</p>
+  <h3>研究内容可以复用吗？包含什么？</h3>
+  <p>可以，MIT 许可开源。含 48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现；不含任何专有源码、二进制或凭据，不含 DRM 规避。</p>
+
+  <h2>资源链接地图</h2>
+  <ul>
+    <li><a href="https://github.com/freeall12/computer-use">GitHub 主仓库</a>——项目总览、核心发现 TL;DR 与能力矩阵入口</li>
+    <li><a href="https://github.com/freeall12/computer-use/tree/main/agents">12 份逆向分册（agents/）</a>——每家 Agent 一册：观察机制、动作注入、安全模型</li>
+    <li><a href="https://github.com/freeall12/computer-use/blob/main/comparison/capability-matrix.md">12 维能力矩阵（comparison/capability-matrix.md）</a>——横向对比总表</li>
+    <li><a href="https://github.com/freeall12/computer-use/blob/main/reusable/patterns.md">20 个可复用设计模式（reusable/patterns.md）</a>——自己做 CU/BU Agent 的模式库</li>
+    <li><a href="https://github.com/freeall12/computer-use/blob/main/docs/methodology.md">逆向方法论（docs/methodology.md）</a>——可复现的分析流程</li>
+    <li><a href="https://github.com/freeall12/computer-use/tree/main/source">12 套可运行参考实现（source/）</a>——逐 Agent 的最小可运行源码层</li>
+    <li><a href="https://github.com/freeall12/computer-use/blob/main/LICENSE">MIT License</a>——内容与代码许可</li>
+    <li><a href="https://freeall12.github.io/computer-use/llms.txt">llms.txt</a>——面向 AI 生成引擎的站点内容地图</li>
+  </ul>
+  <p>本站为独立研究演示页，与所列各厂商均无关联；各产品名称、标志与商标仅作识别用途，归其各自所有者。</p>
+</section>
 
 <!-- ═══ Agent 档案：系统检查器式小窗口 ═══ -->
 <aside class="window panel" id="panel" role="dialog" aria-label="Agent 逆向档案" aria-hidden="true">

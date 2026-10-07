@@ -644,3 +644,69 @@ body.is-paused .mb-btn .i-play { display: block; }
   #animToggle { display: none; }
   .cursor .chip { opacity: .98; transform: none; }
 }
+
+/* ============================================================
+   静态可索引内容层（SEO / GEO · progressive enhancement）
+   内容默认可见（无 JS / 爬虫 / AI 抓取器直接读取）；
+   JS 启动后由 html.js-on 规则隐藏。纯色扁平，无渐变、无彩色阴影。
+   ============================================================ */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* JS 可用：静态层退场，交互式桌面接管 */
+html.js-on .seo-layer { display: none; }
+html.js-on .seo-note { display: none; }
+
+.seo-note {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px 24px 0;
+  font-size: 13px;
+  color: #a8a8ad;
+}
+
+.seo-layer {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 36px 24px 56px;
+  background: var(--bg);
+  color: #d6d6da;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.seo-layer h2 {
+  margin: 36px 0 12px;
+  font-size: 21px;
+  line-height: 1.4;
+  color: #f5f5f7;
+}
+.seo-layer h2:first-child { margin-top: 0; }
+.seo-layer h3 {
+  margin: 22px 0 6px;
+  font-size: 16px;
+  color: #f5f5f7;
+}
+.seo-layer p { margin: 8px 0; }
+.seo-layer ol,
+.seo-layer ul { margin: 8px 0; padding-left: 22px; }
+.seo-layer li { margin: 6px 0; }
+.seo-layer a { color: var(--link); text-underline-offset: 3px; }
+.seo-layer a:hover { color: #a9c4f0; }
+.seo-agent {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border: 1px solid #3a3a3c;
+  border-radius: 10px;
+}
+.seo-agent h3 { margin: 0 0 6px; }
+.seo-agent p { margin: 4px 0; }
