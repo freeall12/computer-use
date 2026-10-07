@@ -1,6 +1,6 @@
 /* ============================================================
    Agent Computer Use Atlas · app.js
-   12 个 Agent 光标的时间轴引擎 + 打字/点击/拖拽反应
+   20 个 Agent 光标的时间轴引擎 + 打字/点击/拖拽反应
    + 窗口聚焦管理 + Dock + 档案检查器窗口
    零依赖 · vanilla JS
    ============================================================ */
@@ -215,6 +215,69 @@
       { t: 'click', p: W('#br-btn-run', .5, .5), hit: '#br-btn-run' },
       { t: 'move', p: A(40, 30), d: 950 }
     ],
+    'browser-use': [
+      { t: 'move', p: W(B, .50, .055), d: 900 },
+      { t: 'click', p: W(B, .50, .055), hit: '#br-url' },
+      { t: 'move', p: W('#br-btn-more', .5, .5), d: 650 },
+      { t: 'click', p: W('#br-btn-more', .5, .5), hit: '#br-btn-more' },
+      { t: 'move', p: W('#br-results', .5, .35), d: 700 },
+      { t: 'hover', d: 650 },
+      { t: 'move', p: A(78, 26), d: 1000 }
+    ],
+    'ui-tars': [
+      { t: 'move', p: A(36, 30), d: 950 },
+      { t: 'hover', d: 700 },
+      { t: 'move', p: W(T, .70, .34), d: 800 },
+      { t: 'click', p: W(T, .70, .34), hit: '#term-body' },
+      { t: 'move', p: A(64, 74), d: 950 },
+      { t: 'hover', d: 450 }
+    ],
+    stagehand: [
+      { t: 'move', p: W('#br-btn-run', .5, .5), d: 900 },
+      { t: 'click', p: W('#br-btn-run', .5, .5), hit: '#br-btn-run' },
+      { t: 'move', p: W(B, .68, .60), d: 700 },
+      { t: 'click', p: W(B, .68, .60), hit: '#br-results' },
+      { t: 'hover', d: 600 },
+      { t: 'move', p: A(58, 78), d: 1000 }
+    ],
+    'self-operating-computer': [
+      { t: 'move', p: A(12, 70), d: 1000 },
+      { t: 'click', p: A(12, 70) },
+      { t: 'move', p: W(T, .15, .35), d: 850 },
+      { t: 'click', p: W(T, .15, .35), hit: '#term-body' },
+      { t: 'move', p: A(92, 80), d: 1200 },
+      { t: 'hover', d: 500 }
+    ],
+    comet: [
+      { t: 'move', p: W(B, .75, .20), d: 950 },
+      { t: 'click', p: W(B, .75, .20), hit: '#br-url' },
+      { t: 'move', p: W(N, .70, .30), d: 900 },
+      { t: 'type', p: W(N, .70, .30), d: 1500 },
+      { t: 'move', p: A(84, 46), d: 900 },
+      { t: 'hover', d: 450 }
+    ],
+    dia: [
+      { t: 'move', p: W(B, .44, .42), d: 900 },
+      { t: 'click', p: W(B, .44, .42), hit: '#br-results' },
+      { t: 'move', p: W('#br-btn-run', .5, .5), d: 700 },
+      { t: 'click', p: W('#br-btn-run', .5, .5), hit: '#br-btn-run' },
+      { t: 'hover', d: 700 },
+      { t: 'move', p: A(66, 36), d: 1000 }
+    ],
+    atlas: [
+      { t: 'move', p: W('#br-results', .5, .75), d: 950 },
+      { t: 'click', p: W('#br-results', .5, .75), hit: '#br-results' },
+      { t: 'move', p: W(B, .24, .62), d: 750 },
+      { t: 'hover', d: 600 },
+      { t: 'move', p: A(46, 20), d: 1050 }
+    ],
+    fellou: [
+      { t: 'move', p: A(96, 70), d: 1100 },
+      { t: 'move', p: W(M, .78, .50), d: 900 },
+      { t: 'click', p: W(M, .78, .50), hit: '#mu-slider' },
+      { t: 'move', p: A(34, 16), d: 1100 },
+      { t: 'hover', d: 500 }
+    ],
     _default: [
       { t: 'move', p: A(50, 50), d: 900 },
       { t: 'hover', d: 600 },
@@ -223,10 +286,14 @@
     ]
   };
 
+  /* 20 个出生点：双行交错 + 中部补点，桌面均匀铺开（避免边角堆积） */
   const SPAWNS = [
-    [8, 14], [16, 86], [32, 10], [46, 88], [60, 10], [74, 86],
-    [90, 14], [93, 42], [52, 50], [24, 58], [86, 62], [10, 36]
+    [6, 12], [14, 86], [22, 10], [30, 88], [38, 12], [46, 86], [54, 10], [62, 88],
+    [70, 12], [78, 86], [90, 14], [94, 40], [50, 48], [10, 34], [86, 60], [24, 62],
+    [64, 58], [40, 40], [76, 30], [16, 46]
   ];
+  /* 错峰启动间隔：按 20 个光标重算（末位 ≈ 4.9s 入场，首位不等待过久） */
+  const STAGGER_MS = 240;
 
   /* ---------- 窗口聚焦管理（z 序 + 标题栏 active + 菜单栏应用名） ---------- */
   let zTop = 5;
@@ -300,7 +367,7 @@
       const cur = {
         ag, el,
         steps: ROUTES[ag.slug] || ROUTES._default,
-        idx: 0, phase: 'pre', delay: 300 + i * 420,
+        idx: 0, phase: 'pre', delay: 300 + i * STAGGER_MS,
         t: 0, dur: 1, act: false,
         pos: { x: sr.width * spawn[0] / 100, y: sr.height * spawn[1] / 100 },
         from: null, to: null, ctrl: null, base: null,
@@ -538,7 +605,7 @@
 
   /* ---------- 备忘录逐字输入 + 虚拟键盘 ---------- */
   const Notes = (() => {
-    const TXT = 'deploy site --agents 12';
+    const TXT = 'deploy site --agents 20';
     const textEl = $('#note-text');
     let quota = 0, idx = 0;
     function pressKey(ch) {
@@ -632,7 +699,7 @@
     return { toggle() { win.classList.toggle('playing'); } };
   })();
 
-  /* ---------- Dock：仓库 / 文档 · 12 Agent（真实 logo） · 访问 GitHub ---------- */
+  /* ---------- Dock：仓库 / 文档 · 20 Agent（真实 logo · 紧凑尺寸） · 访问 GitHub ---------- */
   function buildDock() {
     const box = $('#dockAgents');
     box.innerHTML = AGENTS.map(ag => {
@@ -661,12 +728,12 @@
     setupDockMagnify();
   }
 
-  /* ---------- Dock 鱼眼放大：高斯距离衰减 + 相互推挤 ---------- */
+  /* ---------- Dock 鱼眼放大：高斯距离衰减 + 相互推挤（图标紧凑尺寸 34px） ---------- */
   function setupDockMagnify() {
     const dock = $('.dock');
     const items = $$('.dock .dock-agents .dk-item, .dock > .dk-item');
     if (!dock || items.length < 2) return;
-    const SIZE = 40, MAG = .5, SIGMA2 = 2 * 60 * 60;
+    const SIZE = 34, MAG = .55, SIGMA2 = 2 * 55 * 55;
     let base = [];
     const measure = () => {
       items.forEach(it => { it.style.transform = ''; const ic = it.firstElementChild; if (ic) ic.style.transform = ''; });

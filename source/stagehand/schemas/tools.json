@@ -1,0 +1,158 @@
+{
+  "_provenance": {
+    "upstream": "github.com/browserbase/stagehand",
+    "commit": "fdd179582b6b1f9e43c3d18ad27917cf2e66631e",
+    "versions": { "workspace": "4.0.0", "sdk-ts": "4.1.0", "protocol": "2.0.0", "extension": "1.0.2" },
+    "license": "MIT",
+    "status": "文档",
+    "note": "手写整理自上游 TypeScript schema 与源码（事实级）；行号基于 commit fdd17958。路径相对 packages/。"
+  },
+  "runtime_model": {
+    "architecture": "瘦客户端 SDK + 浏览器内扩展 Runtime（MV3 service worker）",
+    "transport": "JSON-RPC over CDP：SDK 经 Runtime.evaluate 调 __stagehandReceiveFromHost() 送入扩展，扩展经 CDP binding __stagehandSendToHost 回包",
+    "transport_source": "sdk-ts/src/cdpClient.ts:112-121,407-429; protocol/schema-registry.ts:124",
+    "install": "本地 Chrome 经 CDP Extensions.loadUnpacked 装载扩展；Browserbase 云端会话预装（preloadedExtension）",
+    "install_source": "sdk-ts/src/cdpClient.ts:752-780,629-645"
+  },
+  "primitives": {
+    "act": {
+      "signature": "act(instruction: string | Action, options?) -> ActResult",
+      "client_source": "sdk-ts/src/stagehand.ts:232-246",
+      "impl_source": "extension/services/actService.ts:62-247",
+      "input": {
+        "instruction": "自然语言字符串，或 observe 返回的 Action 对象（对象=纯确定性执行，零推理）",
+        "options": {
+          "model": "ModelConfig（本次调用覆盖）",
+          "variables": "Record<string, string|{value,description}>，%key% 占位符替换（actService.ts:506-519）",
+          "timeout": "ms",
+          "locator": "LocatorDescriptor，作用域限定（设置后旁路缓存，cacheService.ts:121-128）",
+          "ignoreLocators": "LocatorDescriptor[]，从规划中排除子树",
+          "cache": "boolean|{threshold}，覆盖实例级缓存开关"
+        },
+        "schema_source": "protocol/schemas.ts:1125-1175 (ActOptionsSchema)"
+      },
+      "output": {
+        "data": {
+          "success": "boolean",
+          "message": "string",
+          "actionDescription": "string",
+          "actions": "Action[]（实际执行的选择器序列，可回存重放）"
+        },
+        "metadata": {
+          "usage": "inputTokens/outputTokens/reasoningTokens/cachedInputTokens/inferenceTimeMs（多次推理聚合）",
+          "cache": "CacheMetadata（HIT/MISS/missReason/tokensSaved）"
+        },
+        "schema_source": "protocol/schemas.ts:1177-1200 (ActResultDataSchema)"
+      },
+      "fallback_behavior": [
+        "LLM 选不出元素 → success:false, 'No action found'（actService.ts:172-185）",
+        "方法不在支持表 → success:false, 提示改用 Playwright locator 方法（actService.ts:340-352）",
+        "执行失败 + selfHeal:off → success:false 返回错误消息（actService.ts:375-382）",
+        "执行失败 + selfHeal:on → 重快照+重推理选择器，重试一次（actService.ts:399-464）",
+        "缓存命中但重放失败 → 回退全推理管线，cache.missReason='replay_failed'（actService.ts:249-284 + cacheService.ts:280-289）",
+        "twoStep:true → 首动作后重快照 diff 树，第二次推理补完（actService.ts:194-245）"
+      ]
+    },
+    "observe": {
+      "signature": "observe(instruction?, options?) -> { data: Action[], metadata }",
+      "client_source": "sdk-ts/src/stagehand.ts:248-267",
+      "impl_source": "extension/services/observeService.ts:36-191",
+      "input": {
+        "instruction": "可选；缺省用内置指令'找出页面所有可用于未来动作的元素'（observeService.ts:21-22）",
+        "options": "locator/ignoreLocators/variables/cache"
+      },
+      "output": {
+        "data": "Action[]：每项 {selector:'xpath=…', description, method, arguments}，可直接喂给 act(Action) 或 page.locator(selector)",
+        "schema_source": "protocol/schemas.ts (ObservationSchema 于 extension/inference.ts:34-58)"
+      },
+      "fallback_behavior": [
+        "elementId 解析不出 xpath → 该元素丢弃并 warn（observeService.ts:117-124）",
+        "dragAndDrop 目标 ID 非法/解析不出 → 该元素丢弃（observeService.ts:127-148）"
+      ]
+    },
+    "extract": {
+      "signature": "extract(instruction, schema?: ZodSchema|JSONSchema, options?) -> { data, metadata }",
+      "client_source": "sdk-ts/src/stagehand.ts:269-307",
+      "impl_source": "extension/services/extractService.ts:53-213",
+      "input": {
+        "instruction": "必填自然语言",
+        "schema": "Zod schema（SDK 侧转 JSON Schema 过线，stagehand.ts:299）或 JSON Schema；缺省 {extraction:string}（protocol/schemas.ts:1670-1673）",
+        "options": "screenshot:boolean（附视口截图，走图像块）、locator/ignoreLocators、cache"
+      },
+      "output": {
+        "data": "按 schema 校验后的结构化数据",
+        "metadata": "usage + completed（第二次 metadata 推理判定）+ cache",
+        "completed_source": "extension/inference.ts:23-32,146-159"
+      },
+      "fallback_behavior": [
+        "schema 非对象 → 包一层 {value: schema} 再解包（extractService.ts:124-130,175-177）",
+        "链接字段：LLM 只回 DOM 数字 ID，抽取后从 urlMap 回填真实 URL（extractService.ts:167-174）",
+        "options.screenshot=true → 旁路缓存（键不含像素，cacheService 注释 extractService.ts:75-79）",
+        "未抽取完 → metadata.completed=false（inference.ts:23-32）"
+      ]
+    }
+  },
+  "action_object": {
+    "schema": {
+      "selector": "string（CSS 或 xpath=… 前缀）",
+      "description": "string",
+      "method": "click|fill|type|press|scrollTo|nextChunk|prevChunk|selectOptionFromDropdown|hover|doubleClick|dragAndDrop",
+      "arguments": "string[]"
+    },
+    "source": "protocol/schemas.ts:1018-1046 (ActionSchema); 方法表 extension/types/private/handlers.ts:2-14; 执行分派 extension/handlers/handlerUtils/actHandlerUtils.ts:118-136"
+  },
+  "locator": {
+    "descriptor": { "selector": "string(min1)", "nth": "int>=0 可选", "source": "protocol/schemas.ts:619-625 (LocatorSchema)" },
+    "client_class": "sdk-ts/src/locator.ts:24-176：click/hover/fill/count/isChecked/inputValue/isVisible/innerText/innerHtml/textContent/scrollTo/centroid/highlight/sendClickEvent/type/selectOption/setInputFiles/first/nth",
+    "impl": "扩展内自研 understudy Locator：deepLocator 支持 '>>' iframe 跳步与 XPath 深解析（extension/understudy/deepLocator.ts:53-80）",
+    "note": "v4 无 Playwright 依赖（docs: 'Stagehand v4 drives Chromium over the Chrome DevTools Protocol and has no Playwright dependency'，packages/docs/v4/migrations/playwright.mdx:7）；Locator 是 Playwright 形状的自研复刻"
+  },
+  "model_abstraction": {
+    "three_routes": {
+      "client_reference": "model:{source:'client'} → SDK 注册 llm.generate 反向 RPC handler，推理在宿主进程（stagehand.ts:200-205；schema-registry.ts:171-174）",
+      "byo_key": "model:{modelName:'openai/gpt-5.4-mini', apiKey} → Vercel AI SDK 直连 openai/anthropic/google/groq/cerebras（extension/services/llmService.ts:13-33；llm/aiSdkClient.ts:131-169）",
+      "gateway": "无 model 或 model 无 apiKey 且有 Browserbase 会话 → Browserbase Model Gateway（OpenAI Responses 端点 + x-bb-* 头；llm/gatewayClient.ts:45-62）"
+    },
+    "provider_prefixes": ["openai/", "anthropic/", "google/", "groq/", "cerebras/"],
+    "source": "protocol/schemas.ts:182-186 (ModelProviderSchema), 855-868 (ModelConfigSchema/ClientModelReferenceSchema)"
+  },
+  "caching": {
+    "kind": "服务端缓存（Browserbase Stagehand API + Redis），键由服务端对原始 CDP AX 树 + URL + 参数计算",
+    "flow": "客户端上报 Accessibility.getFullAXTree 原始节点 → API 算键查 Redis → HIT 直接返回 Action[]/数据 → act 无 LLM 确定性重放，重放失败回退全推理；任何缓存环节失败静默降级",
+    "gating": "需 Browserbase apiKey + sessionId；实例级 cache 参数 + 每请求覆盖；locator 作用域请求旁路",
+    "source": "extension/services/cacheService.ts:22-73,121-128,206-333; docs v4/best-practices/caching.mdx:336"
+  },
+  "page_surface": {
+    "rpc_families": { "page.*": 31, "context.*": 17, "locator.*": 17, "stagehand.*": 8, "response.*": 6, "llm.generate": 1, "合计": 80 },
+    "source": "protocol/schema-registry.ts（80 个 name: 条目，2026-10-07 统计）",
+    "playwright_shaped": ["page.goto/reload/goBack/goForward", "page.click/hover/scroll/type/keyPress/dragAndDrop", "page.screenshot/pdf/evaluate/waitForSelector", "page.locator(selector)->Locator", "context.cookies/addCookies/clearCookies", "context.newPage/pages/setActivePage"],
+    "client_source": "sdk-ts/src/page.ts:90-446; sdk-ts/src/locator.ts:24-176"
+  },
+  "browserbase_cloud": {
+    "session_endpoints": { "launch": "POST /v1/sessions（SDK 走 @browserbasehq/sdk）", "connect": "connectSession(sessionId)", "keepAlive": "boolean 控制所有权" },
+    "stagehand_api_regions": {
+      "us-west-2": "https://api.stagehand.browserbase.com",
+      "us-east-1": "https://api.use1.stagehand.browserbase.com",
+      "eu-central-1": "https://api.euc1.stagehand.browserbase.com",
+      "ap-southeast-1": "https://api.apse1.stagehand.browserbase.com"
+    },
+    "api_used_for": ["服务端缓存（/v1 stateless cache routes）", "Model Gateway（{api}/llm，OpenAI Responses 形状）"],
+    "addons": { "search": "browserbase.search(query,numResults?) → @browserbasehq/sdk search.web", "fetch": "browserbase.fetch(url,{format:'markdown'|'raw'|'json'}) → fetchAPI.create" },
+    "source": "extension/clients/stagehandApi.ts:4-15; sdk-ts/src/browser/browserbaseSession.ts; sdk-ts/src/browser/browserbaseServices.ts:34-52; sdk-ts/src/browser/factories.ts:145-228"
+  },
+  "init_params": {
+    "browser": "localBrowser.launch/connect | browserbase.launch/connect（二选一，claim/release 所有权语义）",
+    "model": "ModelConfig | {source:'client'}，可省略走 Gateway",
+    "systemPrompt": "附加到三原语全部 system prompt（prompt.ts:27-37）",
+    "selfHeal": "boolean，act 执行失败后的重推开关（protocol/schemas.ts:1646）",
+    "cache": "Caching（boolean|{threshold}）",
+    "domSettleTimeoutMs": "DOM/网络静默等待上限（actService.ts:120）",
+    "telemetry": "OTLP traces 端点（protocol/schemas.ts:1608-1621）",
+    "source": "protocol/schemas.ts:1623-1657 (StagehandInitParamsSchema)"
+  },
+  "observation_input": {
+    "snapshot": "混合 DOM+AX 快照：每帧 Accessibility.getFullAXTree + DOM.getDocument，跨 iframe/XPath 前缀合并",
+    "tree_line_format": "[帧序-backendNodeId] role: name [selected|checked]，两空格缩进",
+    "source": "extension/understudy/a11y/snapshot/capture.ts:42-59,851,895-934; treeFormatUtils.ts:8-22; frame.ts:95-118"
+  }
+}

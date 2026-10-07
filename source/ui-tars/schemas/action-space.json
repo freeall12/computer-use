@@ -1,0 +1,82 @@
+{
+  "_provenance": {
+    "status": "文档",
+    "evidence": [
+      "agents/ui-tars/computer-use.md §2-§4",
+      "source/ui-tars/vendor/gui-agent/shared/src/utils/actions.ts (unifyActionType/unifyActionInputName 表)",
+      "source/ui-tars/vendor/gui-agent/operator-nutjs/src/NutJSOperator.ts (supportedActions/calculateRealCoords)",
+      "apps/ui-tars/src/main/agent/operator.ts MANUAL.ACTION_SPACES（上游 commit 2ff41a9e）"
+    ],
+    "note": "手写整理的接口事实，非反编译产物。坐标语义、状态机、错误码均标注上游 文件:行号 级出处于 agents/ui-tars/evidence/inventory.md"
+  },
+  "actionSpace": {
+    "summary": "UI-TARS 模型以纯文本输出 Thought + Action；Action 是函数式字符串，坐标即参数——无 AX 树、无元素 ID",
+    "canonicalForm": "Action: click(start_box='<|box_start|>(x1,y1)<|box_end|>')",
+    "formatsAccepted": [
+      "click(start_box='<|box_start|>(x1,y1)<|box_end|>')   —— UI-TARS v1.5 系统提示词标准格式",
+      "click(point='<point>x1 y1</point>')                  —— browser_vision_control 工具面格式",
+      "click(start_box='<bbox>637 964 637 964</bbox>')      —— bbox 四元组",
+      "click(start_box='(100,200)')                         —— 裸坐标"
+    ],
+    "actions": [
+      { "name": "click", "aliases": ["left_click", "left_single"], "inputs": "start(point)", "semantics": "移动+左键单击", "executor": "mouse.click(Button.LEFT)" },
+      { "name": "double_click", "aliases": ["left_double"], "inputs": "start(point)", "semantics": "左键双击", "executor": "mouse.doubleClick(Button.LEFT)" },
+      { "name": "right_click", "aliases": ["right_single"], "inputs": "start(point)", "semantics": "右键单击", "executor": "mouse.click(Button.RIGHT)" },
+      { "name": "middle_click", "aliases": ["middle_single"], "inputs": "start(point)", "semantics": "中键单击", "executor": "mouse.click(Button.MIDDLE)" },
+      { "name": "drag", "aliases": ["select", "left_click_drag"], "inputs": "start, end", "semantics": "按下-移动-释放拖拽", "executor": "mouse.drag(straightTo(end))" },
+      { "name": "mouse_move", "aliases": ["move", "move_to", "hover"], "inputs": "point", "semantics": "直线移动光标", "executor": "mouse.move(straightTo(point))" },
+      { "name": "mouse_down", "aliases": [], "inputs": "point?, button?", "semantics": "按下不释放", "executor": "mouse.pressButton" },
+      { "name": "mouse_up", "aliases": [], "inputs": "point?, button?", "semantics": "释放按键", "executor": "mouse.releaseButton" },
+      { "name": "scroll", "aliases": [], "inputs": "point?, direction(up/down)", "semantics": "先移动后滚动 500 单位", "executor": "mouse.scrollUp/Down(500)" },
+      { "name": "type", "aliases": [], "inputs": "content", "semantics": "键入文本；结尾 \\n 追加回车；Windows 走剪贴板 Ctrl+V", "executor": "keyboard.type / clipboard" },
+      { "name": "hotkey", "aliases": [], "inputs": "key", "semantics": "组合键（空格分隔，≤3 键）", "executor": "keyboard.pressKey+releaseKey" },
+      { "name": "press", "aliases": [], "inputs": "key", "semantics": "只按下不释放", "executor": "keyboard.pressKey" },
+      { "name": "release", "aliases": [], "inputs": "key", "semantics": "释放按键", "executor": "keyboard.releaseKey" },
+      { "name": "wait", "aliases": [], "inputs": "time?(秒)", "semantics": "睡眠后补截图", "executor": "sleep(5000 默认)" },
+      { "name": "navigate", "aliases": [], "inputs": "url", "semantics": "仅浏览器 operator", "executor": "CDP Page.navigate" },
+      { "name": "finished", "aliases": [], "inputs": "content?", "semantics": "任务完成终态", "executor": "StatusEnum.END" },
+      { "name": "call_user", "aliases": [], "inputs": "", "semantics": "任务不可解/需人工，移交用户（人在回路）", "executor": "StatusEnum.CALL_USER" }
+    ],
+    "inputAliases": {
+      "start": ["start_box", "start_point", "start_position", "start_coordinate(s)"],
+      "end": ["end_box", "end_point", "end_position", "end_coordinate(s)"],
+      "point": ["position", "coordinate(s)"],
+      "content": ["text", "input_text", "type"],
+      "key": ["hotkey", "keyboard_key"],
+      "direction": ["dir", "scroll_direction"],
+      "url": ["link", "website"],
+      "time": ["duration", "wait_time", "delay"]
+    }
+  },
+  "coordinates": {
+    "summary": "三表示并存：raw 像素 / normalized 0-1 / referenceBox 四元组；派发前统一换算物理像素",
+    "normalizedToReal": "realX = normalized.x * screenContext.screenWidth; realY = normalized.y * screenContext.screenHeight",
+    "screenContext": {
+      "screenWidth": "逻辑宽 = 物理宽 / scaleX（Retina）",
+      "scaleX_scaleY": "nut-js pixelDensity.scale；桌面版用 electron desktopCapturer 时由 getScreenSize() 提供 scaleFactor",
+      "evidence": "vendor/gui-agent/operator-nutjs/src/NutJSOperator.ts calculateRealCoords; apps/ui-tars/src/main/agent/operator.ts screenshot()"
+    }
+  },
+  "statusMachine": {
+    "StatusEnum": {
+      "init": "初始",
+      "running": "循环中",
+      "pause": "用户暂停（resumePromise 挂起循环）",
+      "end": "finished 动作触达",
+      "call_user": "call_user 动作，移交人工",
+      "user_stopped": "AbortSignal 中止",
+      "error": "错误（带 ErrorStatusEnum 码）",
+      "max_loop": "已废弃，兼容保留"
+    },
+    "ErrorStatusEnum": {
+      "-100000": "SCREENSHOT_RETRY_ERROR",
+      "-100001": "INVOKE_RETRY_ERROR",
+      "-100002": "EXECUTE_RETRY_ERROR",
+      "-100003": "MODEL_SERVICE_ERROR",
+      "-100004": "REACH_MAXLOOP_ERROR",
+      "-100005": "ENVIRONMENT_ERROR",
+      "-100099": "UNKNOWN_ERROR"
+    },
+    "loopDefaults": { "maxLoopCount": 100, "loopIntervalInMs": 500, "retry": { "model": 5, "screenshot": 5, "execute": 1 } }
+  }
+}

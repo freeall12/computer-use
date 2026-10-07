@@ -394,5 +394,245 @@
       "source": "https://github.com/freeall12/computer-use/tree/main/source/mimo"
     },
     "logo": "assets/logos/mimo.png"
+  },
+  {
+    "slug": "browser-use",
+    "name": "Browser Use",
+    "vendor": "开源（MIT）",
+    "color": "#FF5C8A",
+    "monogram": "BU",
+    "cu": "无（纯 BU 极端样本）",
+    "bu": "24 动作 · DOM+截图双观察 · CDP 直连",
+    "chips": [
+      {
+        "label": "句柄",
+        "value": "[index]"
+      },
+      {
+        "label": "凭据",
+        "value": "secret 替换"
+      },
+      {
+        "label": "安全",
+        "value": "导航围栏"
+      }
+    ],
+    "takeaway": "被集成的事实标准库",
+    "toolcall": "uvx browser-use --mcp",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/browser-use/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/browser-use"
+    },
+    "logo": "assets/logos/browser-use.png"
+  },
+  {
+    "slug": "ui-tars",
+    "name": "Agent TARS",
+    "vendor": "字节跳动（开源）",
+    "color": "#2E90FA",
+    "monogram": "TA",
+    "cu": "纯视觉 截图→VLM→坐标",
+    "bu": "dom·visual·hybrid 三模式",
+    "chips": [
+      {
+        "label": "合成",
+        "value": "nut-js"
+      },
+      {
+        "label": "AX",
+        "value": "零"
+      },
+      {
+        "label": "解析层",
+        "value": "50 别名"
+      }
+    ],
+    "takeaway": "纯视觉路线唯一代表",
+    "toolcall": "Thought → click(x,y)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/ui-tars/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/ui-tars"
+    },
+    "logo": "assets/logos/ui-tars.png"
+  },
+  {
+    "slug": "stagehand",
+    "name": "Stagehand",
+    "vendor": "Browserbase（开源）",
+    "color": "#B44CF0",
+    "monogram": "SH",
+    "cu": "无",
+    "bu": "act·observe·extract 三原语 + 77 确定性 RPC",
+    "chips": [
+      {
+        "label": "定位",
+        "value": "半自动生产派"
+      },
+      {
+        "label": "运行时",
+        "value": "MV3"
+      },
+      {
+        "label": "执行",
+        "value": "缓存重放"
+      }
+    ],
+    "takeaway": "确定性代码+AI 逃生舱",
+    "toolcall": "await stagehand.act(\"点击登录\")",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/stagehand/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/stagehand"
+    },
+    "logo": "assets/logos/stagehand.png"
+  },
+  {
+    "slug": "self-operating-computer",
+    "name": "Self-Operating Computer",
+    "vendor": "OthersideAI（开源）",
+    "color": "#4E6E81",
+    "monogram": "SC",
+    "cu": "截图→pyautogui 全局合成",
+    "bu": "无（光谱零点）",
+    "chips": [
+      {
+        "label": "风格",
+        "value": "极简派"
+      },
+      {
+        "label": "安全",
+        "value": "零基线"
+      },
+      {
+        "label": "观察",
+        "value": "YOLO SoM"
+      }
+    ],
+    "takeaway": "2023 年的活化石对照组",
+    "toolcall": "CLICK {[0.5, 0.3]}",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/self-operating-computer/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/self-operating-computer"
+    },
+    "logo": "assets/logos/self-operating-computer.png"
+  },
+  {
+    "slug": "comet",
+    "name": "Comet",
+    "vendor": "Perplexity",
+    "color": "#20808D",
+    "monogram": "CM",
+    "cu": "无 OS 级（标签页边界）",
+    "bu": "内嵌 CRX + 23 私有 API · 云端决策本机执行",
+    "chips": [
+      {
+        "label": "形态",
+        "value": "浏览器即载体"
+      },
+      {
+        "label": "安全",
+        "value": "视口守卫"
+      },
+      {
+        "label": "输入",
+        "value": "人类封锁"
+      }
+    ],
+    "takeaway": "云脑+本地手的混合体",
+    "toolcall": "ComputerBatch(10 动作)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/comet/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source/comet"
+    },
+    "logo": "assets/logos/comet.png"
+  },
+  {
+    "slug": "dia",
+    "name": "Dia",
+    "vendor": "The Browser Company",
+    "color": "#C86DD7",
+    "monogram": "DI",
+    "cu": "0（SDK 预埋未接）",
+    "bu": "内嵌 Claude Code SDK · 沙箱 JS REPL",
+    "chips": [
+      {
+        "label": "CLI",
+        "value": "claude 2.1.280"
+      },
+      {
+        "label": "规格",
+        "value": "45 agent"
+      },
+      {
+        "label": "授权",
+        "value": "委派门"
+      }
+    ],
+    "takeaway": "披着浏览器的 Claude Code 发行版",
+    "toolcall": "browser_use(js: playwright…)",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/dia/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source"
+    },
+    "logo": "assets/logos/dia.png"
+  },
+  {
+    "slug": "atlas",
+    "name": "ChatGPT Atlas",
+    "vendor": "OpenAI",
+    "color": "#74AA9C",
+    "monogram": "AT",
+    "cu": "页内虚拟光标（无 OS 级）",
+    "bu": "Operator 血统 computer.* · ARIA ref 快照",
+    "chips": [
+      {
+        "label": "栈",
+        "value": "不走 Sky"
+      },
+      {
+        "label": "代号",
+        "value": "Dragonfruit"
+      },
+      {
+        "label": "记忆",
+        "value": "memories"
+      }
+    ],
+    "takeaway": "同账号不同栈的 Operator 继承者",
+    "toolcall": "computer.click [ref=]",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/atlas/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source"
+    },
+    "logo": "assets/logos/atlas.png"
+  },
+  {
+    "slug": "fellou",
+    "name": "Fellou",
+    "vendor": "Fellou AI（停更）",
+    "color": "#5C6BC0",
+    "monogram": "FE",
+    "cu": "云端 Javis 全控制委派",
+    "bu": "Eko 框架 13 工具 · SoM 观察",
+    "chips": [
+      {
+        "label": "影子",
+        "value": "Shadow Browser"
+      },
+      {
+        "label": "状态",
+        "value": "产品已停更"
+      },
+      {
+        "label": "框架",
+        "value": "MIT"
+      }
+    ],
+    "takeaway": "云端全控制的极端样本",
+    "toolcall": "deepAction → Javis",
+    "links": {
+      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/fellou/README.md",
+      "source": "https://github.com/freeall12/computer-use/tree/main/source"
+    },
+    "logo": "assets/logos/fellou.png"
   }
 ]

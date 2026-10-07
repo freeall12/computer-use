@@ -1,0 +1,75 @@
+{
+  "_provenance": {
+    "status": "文档",
+    "evidence": [
+      "agents/ui-tars/browser-use.md §2-§4",
+      "multimodal/agent-tars/core/src/environments/local/index.ts (createMCPServers/InMemoryTransport)",
+      "multimodal/agent-tars/core/src/environments/local/browser/browser-control-strategies/*.ts（上游 commit 2ff41a9e）",
+      "multimodal/agent-tars/core/src/environments/local/browser/tools/*.ts"
+    ],
+    "note": "手写整理的 Agent TARS CLI（@agent-tars/cli 0.3.0 / @agent-tars/core 0.3.0）工具面。三种浏览器控制模式注册的工具集合不同，逐模式列出。"
+  },
+  "architecture": {
+    "summary": "内置 MCP server 进程内启动，InMemoryTransport 成对接连 agent；非子进程、无 stdio",
+    "builtinMcpServers": ["browser", "filesystem", "commands"],
+    "inProcessTransport": "InMemoryTransport.createLinkedPair()",
+    "externalMcp": "CLI --mcp 参数 / config 文件挂载外部 MCP server（stdio/HTTP）",
+    "systemPromptNote": "DEFAULT_SYSTEM_PROMPT 注释自述 inspired and modified from Manus"
+  },
+  "modes": {
+    "dom": {
+      "description": "纯 DOM 路线：MCP browser server 的 CDP 工具，无视觉",
+      "tools": [
+        "browser_navigate", "browser_go_back", "browser_go_forward", "browser_get_markdown",
+        "browser_click", "browser_press_key", "browser_hover", "browser_scroll",
+        "browser_form_input_fill", "browser_select", "browser_get_clickable_elements",
+        "browser_read_links", "browser_tab_list", "browser_new_tab", "browser_close_tab",
+        "browser_switch_tab", "browser_evaluate", "browser_screenshot"
+      ],
+      "count": 18,
+      "note": "17 项来自 MCP browser server（browser_get_markdown 与自实现 content 工具重名，注册表去重）+ browser_screenshot；不注册 get_url/get_title"
+    },
+    "visual-grounding": {
+      "description": "纯视觉路线：browser_vision_control 坐标点击 + 自实现导航/取文工具（不经 MCP browser server 的 DOM 动作工具）",
+      "tools": [
+        "browser_vision_control",
+        "browser_navigate", "browser_go_back", "browser_go_forward", "browser_refresh",
+        "browser_get_markdown", "browser_get_url", "browser_get_title", "browser_screenshot"
+      ],
+      "count": 9
+    },
+    "hybrid": {
+      "description": "混合（默认）：视觉工具 + DOM 动作工具并存，冲突不仲裁",
+      "tools": [
+        "browser_vision_control",
+        "browser_navigate", "browser_go_back", "browser_go_forward", "browser_refresh",
+        "browser_get_markdown", "browser_screenshot",
+        "browser_click", "browser_form_input_fill", "browser_press_key", "browser_hover",
+        "browser_scroll", "browser_select", "browser_get_clickable_elements", "browser_read_links",
+        "browser_tab_list", "browser_new_tab", "browser_close_tab", "browser_switch_tab", "browser_evaluate"
+      ],
+      "count": 20
+    }
+  },
+  "visionTool": {
+    "name": "browser_vision_control",
+    "description": "基于视觉理解的浏览器操作工具：模型输出 Thought/Action 文本，引擎解析为坐标动作",
+    "parameters": {
+      "thought": { "type": "string", "description": "观察与计划一句话（不含双引号）" },
+      "step": { "type": "string", "description": "下一步动作+目标元素一句话" },
+      "action": { "type": "string", "description": "动作空间内的动作字符串，如 click(point='<point>x y</point>')" }
+    },
+    "returns": { "success": true, "action": "serializeAction 串", "normalizedAction": "归一后的 BaseAction" },
+    "evidence": "multimodal/agent-tars/core/src/environments/local/browser/browser-gui-agent.ts:97-140"
+  },
+  "nonBrowserTools": [
+    { "name": "web_search", "description": "网页搜索（直连 Tool，非 MCP）", "providers": ["browser_search", "bing", "tavily", "searxng", "duckduckgo"], "evidence": "core/src/environments/local/search/search-tool.ts:74-100" },
+    { "name": "filesystem（11 工具 MCP）", "description": "read_file/read_multiple_files/write_file/edit_file/create_directory/list_directory/directory_tree(安全版替换)/move_file/search_files/get_file_info/list_allowed_directories；allowedDirectories 锁定 workspace", "evidence": "core/src/environments/local/filesystem/filesystem-tools-manager.ts:35,141" },
+    { "name": "run_command", "description": "commands MCP：本机 shell 命令", "evidence": "packages/agent-infra/mcp-servers/commands/src/server.ts:38-52" },
+    { "name": "run_script", "description": "commands MCP：脚本经 stdin 管道执行", "evidence": "packages/agent-infra/mcp-servers/commands/src/server.ts:54-74" }
+  ],
+  "sandbox": {
+    "aioMode": "aioSandbox 选项启用后全部工具改由 AIO Sandbox（agent-infra/sandbox，隔离 Linux 容器）MCP 提供，本地资源操作全部禁用",
+    "localDefault": "默认 LocalEnvironment：filesystem 锁 workspace、commands 无沙箱、nut-js 直达桌面"
+  }
+}

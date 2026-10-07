@@ -1,0 +1,171 @@
+{
+  "_provenance": {
+    "status": "文档",
+    "note": "手写整理自上游 0.13.11 源码（MIT，commit c75e8476）。每条目的 source 字段标注上游 文件:行号。行号基于该 commit。",
+    "upstream": "https://github.com/browser-use/browser-use",
+    "commit": "c75e8476e26d18b7617643bc2ae082fae8eae431",
+    "license": "MIT"
+  },
+  "surface": {
+    "kind": "library-actions",
+    "transport": "in-process (Agent → Tools/Registry → BrowserSession event bus → CDP over WebSocket)",
+    "action_count": 24,
+    "count_note": "26 处 @registry.action 注册，click 与 done 各有互斥双变体（坐标版/索引版、结构化输出版/纯文本版），运行时 24 个动作名"
+  },
+  "actions": [
+    {
+      "name": "click",
+      "description": "Click element by index or coordinates. Use coordinates only if the index is not available.",
+      "params": {
+        "index": "int|null ge=1 (element index from browser_state)",
+        "coordinate_x": "int|null (viewport-relative)",
+        "coordinate_y": "int|null"
+      },
+      "flags": { "coordinate_clicking": "auto-enabled for claude-sonnet-4-5/opus-4-5/fable-5, gemini-3-pro, browser-use/* models" },
+      "source": "browser_use/tools/service.py:2122-2152, 2160-2176; params: tools/views.py:69-80"
+    },
+    {
+      "name": "input",
+      "description": "Input text into element by index. Clears existing text by default.",
+      "params": { "index": "int ge=0", "text": "string (supports <secret>placeholder</secret>)", "clear": "bool=true" },
+      "notes": "Dispatches TypeTextEvent; reads back actual_value and warns LLM on page reformatting.",
+      "source": "browser_use/tools/service.py:773-858; params: tools/views.py:83-86"
+    },
+    {
+      "name": "navigate",
+      "description": "Navigate to URL; new_tab=true opens a new tab (no standalone new_tab action).",
+      "params": { "url": "string", "new_tab": "bool=false" },
+      "source": "browser_use/tools/service.py:502-546; params: tools/views.py:60-62"
+    },
+    {
+      "name": "search",
+      "description": "Search the web with an engine choice.",
+      "params": { "query": "string", "engine": "string = duckduckgo|google|bing (default duckduckgo)" },
+      "source": "browser_use/tools/service.py:458-460; params: tools/views.py:49-53"
+    },
+    {
+      "name": "go_back",
+      "description": "Go back in history.",
+      "params": {},
+      "flags": { "terminates_sequence": true },
+      "source": "browser_use/tools/service.py:583"
+    },
+    {
+      "name": "wait",
+      "description": "Wait for x seconds.",
+      "params": { "seconds": "int=3" },
+      "source": "browser_use/tools/service.py:597-598"
+    },
+    {
+      "name": "scroll",
+      "description": "Scroll by pages (down=True/False), optional container index; CDP wheel gesture.",
+      "params": { "down": "bool=true", "pages": "float 0.5-10 =1.0", "index": "int|null" },
+      "source": "browser_use/tools/service.py:1379-1381; params: tools/views.py:130-134"
+    },
+    {
+      "name": "find_text",
+      "alias_of_description": "Scroll to text (runtime name from handler function; legacy docs may call it scroll_to_text).",
+      "description": "Scroll to visible text.",
+      "params": { "text": "string" },
+      "source": "browser_use/tools/service.py:1503-1504; name in prompt: system_prompts/system_prompt.md:167"
+    },
+    {
+      "name": "send_keys",
+      "description": "Send keyboard keys via Input.dispatchKeyEvent.",
+      "params": { "keys": "string" },
+      "source": "browser_use/tools/service.py:1484-1486"
+    },
+    {
+      "name": "switch",
+      "description": "Switch to another open tab by tab_id (last 4 chars of CDP target_id).",
+      "params": { "tab_id": "string" },
+      "flags": { "terminates_sequence": true },
+      "source": "browser_use/tools/service.py:1004-1046"
+    },
+    {
+      "name": "close",
+      "description": "Close a tab by tab_id; stale ids degrade gracefully.",
+      "params": { "tab_id": "string" },
+      "source": "browser_use/tools/service.py:1038-1042 (handler `close`, param CloseTabAction)"
+    },    {
+      "name": "upload_file",
+      "description": "Upload a file to a file-input element; path must be whitelisted.",
+      "params": { "path": "string (available_file_paths ∪ session downloads ∪ FileSystem)", "index": "int" },
+      "cdp": "DOM.setFileInputFiles",
+      "source": "browser_use/tools/service.py:860-912; cdp call: watchdogs/default_action_watchdog.py:2718"
+    },
+    {
+      "name": "extract",
+      "description": "LLM extraction of structured data from page markdown; paginatable via start_from_char/already_collected.",
+      "params": { "query": "string", "extract_links": "bool", "extract_images": "bool", "start_from_char": "int", "already_collected": "list[str]" },
+      "source": "browser_use/tools/service.py:1067-1069; params: tools/views.py:8-27"
+    },
+    {
+      "name": "search_page",
+      "description": "Grep page text (zero LLM cost); regex/case/scope options.",
+      "params": { "pattern": "string", "regex": "bool=false", "case_sensitive": "bool=false", "css_scope": "string|null", "max_results": "int=25" },
+      "source": "browser_use/tools/service.py:1307-1309; params: tools/views.py:30-36"
+    },
+    {
+      "name": "find_elements",
+      "description": "Query DOM by CSS selector (zero LLM cost).",
+      "params": { "selector": "string", "attributes": "list[str]|null", "max_results": "int=50", "include_text": "bool=true" },
+      "source": "browser_use/tools/service.py:1344-1346; params: tools/views.py:39-46"
+    },
+    {
+      "name": "dropdown_options",
+      "description": "Enumerate <select> options for an element index.",
+      "params": { "index": "int" },
+      "source": "browser_use/tools/service.py:1679-1681"
+    },
+    {
+      "name": "select_dropdown",
+      "description": "Set a <select> option by index.",
+      "params": { "index": "int", "option": "string" },
+      "source": "browser_use/tools/service.py:1707-1709"
+    },
+    {
+      "name": "screenshot",
+      "description": "Capture viewport (optionally full_page) screenshot; clean capture, highlights removed first.",
+      "params": { "file_name": "string|null", "full_page": "bool=false" },
+      "cdp": "Page.captureScreenshot",
+      "source": "browser_use/tools/service.py:1524-1527; cdp call: watchdogs/screenshot_watchdog.py:63-83"
+    },
+    {
+      "name": "save_as_pdf",
+      "description": "Save current page as PDF file.",
+      "params": {},
+      "source": "browser_use/tools/service.py:1564-1567"
+    },
+    {
+      "name": "evaluate",
+      "description": "Execute browser JavaScript (IIFE recommended); NOT for clicking indexed elements.",
+      "params": { "script": "string" },
+      "source": "browser_use/tools/service.py:1833"
+    },
+    {
+      "name": "write_file / replace_file / read_file",
+      "description": "Built-in FileSystem sandbox file ops.",
+      "params": { "file_name": "string", "content/old_str/new_str": "string", "append": "bool=false" },
+      "source": "browser_use/tools/service.py:1754,1787,1795"
+    },
+    {
+      "name": "done",
+      "description": "Complete task; with output_model_schema becomes StructuredOutputAction[T] and auto-attaches session downloads.",
+      "params": { "success": "bool=true", "text": "string | data: T", "files_to_display": "list[str]" },
+      "flags": { "terminal": true },
+      "source": "browser_use/tools/service.py:2008-2090; params: tools/views.py:89-120"
+    }
+  ],
+  "observation_format": {
+    "dom_text": "[index]<tag attr=value /> indented tree; *[n] = new since last step; |SCROLL|; |SHADOW(open/closed)|",
+    "authority": "browser_use/agent/system_prompts/system_prompt.md:41-56; serializer: dom/serializer/serializer.py:989-1105",
+    "selector_map": "index → EnhancedDOMTreeNode (session-cached; O(1) action lookup; browser/session.py:2459-2500)",
+    "screenshot": "clean Page.captureScreenshot each step; enters LLM messages per use_vision: true|'auto'|false (agent/message_manager/service.py:461-478)"
+  },
+  "security": {
+    "sensitive_data": "<secret>key</secret> placeholder protocol; plaintext never reaches the model (tools/registry/service.py:434-480)",
+    "allowed_domains": "glob whitelist + prohibited_domains + block_ip_addresses (browser/profile.py:628-642; enforcement: watchdogs/security_watchdog.py:35-73)",
+    "upload_whitelist": "upload_file path must be in available_file_paths ∪ session downloads (tools/service.py:864-912)"
+  }
+}

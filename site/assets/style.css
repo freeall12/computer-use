@@ -404,14 +404,16 @@ body.is-paused .mb-btn .i-play { display: block; }
 .cursor.chip-on .chip { opacity: .98; transform: translateY(0); }
 .cursor.flip .chip { left: auto; right: 16px; }
 
-/* ═══ Dock（材质性半透明 · 鱼眼放大由 JS 驱动） ═══ */
+/* ═══ Dock（材质性半透明 · 鱼眼放大由 JS 驱动）
+   20 图标紧凑方案：图标 34px + 间距 4px，一排放得下且保留鱼眼放大 ═══ */
 .dock {
-  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
   width: max-content;
+  max-width: calc(100vw - 16px);
   z-index: 850;
-  display: flex; align-items: center; gap: 8px;
-  height: 58px; padding: 0 12px;
-  border-radius: 18px;
+  display: flex; align-items: center; gap: 6px;
+  height: 52px; padding: 0 10px;
+  border-radius: 16px;
   background: rgba(246, 246, 248, .66);
   border: 1px solid rgba(255, 255, 255, .3);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .38);
@@ -424,9 +426,9 @@ body.is-paused .mb-btn .i-play { display: block; }
   display: flex; align-items: flex-end;
 }
 .dk-ic {
-  width: 40px; height: 40px; border-radius: 9px;
+  width: 34px; height: 34px; border-radius: 8px;
   display: grid; place-items: center;
-  font: 600 13px/1 var(--sans);
+  font: 600 12px/1 var(--sans);
   border: 1px solid rgba(0, 0, 0, .1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
   transform-origin: 50% 100%;
@@ -434,12 +436,12 @@ body.is-paused .mb-btn .i-play { display: block; }
   overflow: hidden;
 }
 .dk-logo { border-color: transparent; background: #ececee; }
-.dk-logo img { width: 40px; height: 40px; display: block; }
+.dk-logo img { width: 34px; height: 34px; display: block; }
 .dk-logo .dk-mono { display: none; }
 .dk-item:focus-visible { outline: none; }
 .dk-item:focus-visible .dk-ic { outline: 2px solid #fff; outline-offset: 2px; }
 .dk-svg { background: none; border: none; box-shadow: none; }
-.dk-svg svg { width: 32px; height: 32px; }
+.dk-svg svg { width: 28px; height: 28px; }
 /* Dock 提示：macOS 胶囊 */
 .dk-item::after {
   content: attr(data-tip);
@@ -454,13 +456,13 @@ body.is-paused .mb-btn .i-play { display: block; }
   transition: opacity .15s ease, transform .15s ease;
 }
 .dk-item:hover::after, .dk-item:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
-.dk-sep { width: 1px; height: 34px; background: rgba(0, 0, 0, .18); margin: 0 3px; flex: none; }
-.dock-agents { display: flex; align-items: flex-end; gap: 8px; }
+.dk-sep { width: 1px; height: 30px; background: rgba(0, 0, 0, .18); margin: 0 2px; flex: none; }
+.dock-agents { display: flex; align-items: flex-end; gap: 4px; }
 .dk-label {
-  flex: none; height: 40px;
-  display: inline-flex; align-items: center; padding: 0 12px;
-  border-radius: 9px;
-  font-size: 12.5px; font-weight: 500; color: var(--ink); text-decoration: none;
+  flex: none; height: 34px;
+  display: inline-flex; align-items: center; padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 500; color: var(--ink); text-decoration: none;
   transition: background .15s ease;
 }
 .dk-label:hover { background: rgba(0, 0, 0, .07); }

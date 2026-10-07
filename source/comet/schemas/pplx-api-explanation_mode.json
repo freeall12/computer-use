@@ -1,0 +1,1 @@
+{"namespace":"perplexity.explanation_mode","types":[],"functions":[],"properties":{},"events":[{"parameters":[{"name":"tab_id","type":"integer"}],"name":"onEnabled","type":"function"},{"parameters":[{"name":"tab_id","type":"integer"}],"name":"onDisabled","type":"function"}],"platforms":null,"deprecated":null}

@@ -1,0 +1,107 @@
+{
+  "manifest_version": 3,
+  "name": "comet-agent",
+  "version": "0.0.187",
+  "description": "Comet Agent",
+  "storage": {
+    "managed_schema": "managed_schema.json"
+  },
+  "default_locale": "en",
+  "permissions": [
+    "activeTab",
+    "cookies",
+    "scripting",
+    "storage",
+    "tabs",
+    "debugger",
+    "webNavigation",
+    "webRequest",
+    "sessions",
+    "history",
+    "offscreen",
+    "file://*/",
+    "declarativeNetRequestWithHostAccess",
+    "clipboardWrite",
+    "clipboardRead",
+    "tabGroups",
+    "downloads",
+    "downloads.ui",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvADNUYEbk1+QVh4/IBQjooydDEAGyH1F0mvJeLOik2ZR/L/79io9STRdEHIskf0vzwE7bA/rPJvI/ZEDCV+GZC8OXdYs9QppTWJ63Ij/6FlvRx4tfUbtag+xu5Y0rm6zPMJdZMn8StTUhqa92J3R5TQnNMd6oCV5t7ckKxHGGGMs2tTuPDJ4UdOAtKD8cwZiXyLyk3MErJiUtY6NcjEN0TCqrsY74+80Xg5TcttK5RN5fJNUHDWlCISlwi0jXjm7uWhdAoCCodOyk41trSNWmURy0nm75tKq6U/2GymmpDmGhEaQcGyrnSrFIubrI2Vl04Y3DSAaDW/AnijE85KxYwIDAQAB",
+  "update_url": "https://www.perplexity.ai/rest/browser/update-crx?channel=stable",
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://perplexity.ai/*",
+      "https://www.perplexity.ai/*",
+      "https://testing.perplexity.ai/*",
+      "https://staging.perplexity.ai/*",
+      "https://*.preview.i.perplexity.ai/*",
+      "https://perplexity.com/*",
+      "https://www.perplexity.com/*",
+      "https://testing.perplexity.com/*",
+      "https://staging.perplexity.com/*",
+      "https://*.preview.i.perplexity.com/*"
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "google_docs_web.js"
+      ],
+      "matches": [
+        "https://docs.google.com/*"
+      ]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "https://*.perplexity.ai/sidecar/*",
+        "http://localhost:*/sidecar*"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "https://*.perplexity.ai/sidecar/*",
+        "http://localhost:*/sidecar*"
+      ],
+      "js": [
+        "events.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "https://docs.google.com/document*"
+      ],
+      "all_frames": true,
+      "js": [
+        "google_docs_cs.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

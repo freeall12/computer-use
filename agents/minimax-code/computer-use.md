@@ -1,144 +1,98 @@
-# MiniMax Code — Computer Use（原生桌面控制）完整逆向
+# MiniMax Code：Computer Use —— AX token 定位优先、截图像素兜底的双路由桌面控制
 
-> 证据基线：app.asar 解包目录 `/tmp/mm-asar`（原始路径 `/Applications/MiniMax Code.app/Contents/Resources/app.asar`，406 MB，版本 3.1.0）。以下所有相对路径均以 `/tmp/mm-asar/` 为根。
+> 基线：`/Applications/MiniMax Code.app` app.asar（406 MB）解包至 `/tmp/mm-asar`，版本 3.1.0；以下相对路径以其为根。
+> 17 工具完整 schema：[source/minimax-code/schemas/computer-tools.json](../../source/minimax-code/schemas/computer-tools.json)；证据映射：[evidence/inventory.md](evidence/inventory.md) §B。
 
-## 1. 结论速览
+## 速览
 
-- **本地驱动，非云端**。CU = Electron 主进程门面（`dist/main/modules/local-runtime/computer-use/`）+ 独立 utility process（服务名 `mavis-cua`）+ **`@trycua/cua-driver` 0.22.1**（开源 trycua/cua 的 Rust/UniFFI SDK，MIT，仓库 `github.com/trycua/cua`）。云上只有 LLM/编排，观察与动作全部发生在本机。
-- 工具面 **17 个 `computer_*`** 工具，由 `@mavis/local-runtime-v2/src/service/computer-use/tools.ts` 以 "facade 工具名 → CUA 驱动工具名" 的映射生成（映射表在 `dist/main/modules/local-runtime/computer-use/cua-utility-server.js` 的 `mapRequestToCuaTool`）。
-- macOS 上动作有两条交付路由：**background**（AX/UIA 可访问性注入，不抢焦点）为默认；**foreground**（HID 事件 + 抢焦点）需事先向用户公告。工具描述里直接写入了 "CUA 0.22.1 在 macOS 仅支持 foreground drag" 等驱动级已知限制。
-- 安全模型四层：**macOS TCC 双权限**（屏幕录制 + 辅助功能）→ **插件准入**（官方插件 `computer-use` 的 Host Binding）→ **单会话控制租约（lease）** → **提示层安全示能**（桌面遮罩条 + 停止按钮 + 指针动画 + 窗口移交）。
+**CU = Electron 门面（`dist/main/modules/local-runtime/computer-use/`）+ 独立 utility process（`mavis-cua`）+ `@trycua/cua-driver` 0.22.1（开源 trycua/cua 的 Rust/UniFFI SDK，MIT）；云上只有 LLM，观察与动作全在本机。**
 
-## 2. 能力载体清单
+## 启用链：binding 门控三层，缺一层工具即不存在
 
-| 组件 | 绝对路径 | 版本/说明 |
-| --- | --- | --- |
-| CUA 驱动 SDK | `node_modules/@trycua/cua-driver/`（dist/index.js、electron.js、embedded.js） | 0.22.1，MIT，Rust/UniFFI，依赖 `@ubjs/core`/`@ubjs/node` |
-| 驱动原生库 | `node_modules/@trycua/cua-driver-darwin-arm64` / `-darwin-x64` | 0.22.1（平台 optionalDependencies） |
-| CUA utility 入口 | `dist/main/modules/local-runtime/computer-use/cua-entry.js` → `cua-utility-server.js`（1191 行） | `utilityProcess.fork`，serviceName `mavis-cua`，macOS 下 `execArgv:['--message-loop-type-ui']`（服务原生 run loop） |
-| 宿主门面 | `dist/main/modules/local-runtime/computer-use/index.js`（386 行） | lifecycle、MessagePort、generation fencing、UI 示能 |
-| 运行时服务 | `node_modules/@mavis/local-runtime-v2/src/service/computer-use/`（client/tools/state/initialize/session-selection） | 工具目录与能力门 |
-| 官方插件 | `~/.minimax/v2/plugin-cache/official/sha256-tree-v1-b9fdb15…/` | name `computer-use`，displayName 电脑操控，v1.0.1，hostBindings: `bindings/computer.binding.json`，skills: `skills/computer-use/SKILL.md` |
-| 权限 IPC | `dist/main/ipc/cuPermission.ipc.js` + `dist/main/modules/screenshot/permission.js` | STATUS / REQUEST / OPEN_SETTINGS 三通道 |
-| 日志 | `dist/main/utils/computer-use-log-writer.js` | CU 专用 5MB×4 轮转 JSONL 日志 |
-
-工具名前缀约定（`@mavis/agent-tools/src/desktop/canonical-tool-policy.ts`）：*"Computer-use tools share the computer_* namespace across native and MCP paths"* —— 原生与 MCP 两条路径共用 `computer_` 前缀。
-
-## 3. 启用链路与进程模型
-
-### 3.1 插件准入（总开关）
-
-`@mavis/local-runtime-v2/src/service/computer-use/initialize.ts`：
-
-- `computerUsePluginCapabilitiesChanged`：仅当受信任快照里存在 `plugin.name === 'computer-use' && plugin.source === 'official' && hostCapabilities 含 'computer-use'` 时 `setComputerUseEnabled(true)`；插件被吊销时立即 `setEnabled(false)` 并 `client.release()`。
-- 工具目录装配（`initializeComputerUseProductCapabilities.toolSources.resolve`）：先从 nativeTools 中**剔除所有** `computer_` 前缀工具；仅当 `toolInput.computerUseActive`（用户按会话选中 CU）且 client 就绪时，才重新构建并追加 CU 工具。**未启用 = 模型根本看不到这些工具**。
-- 工具执行时再查一次 `isComputerUseEnabled()`，并注册 AbortController 到全局表，使 `setEnabled(false)` / `/computer-use/abort` 能即时掐断在途 CUA 调用（tools.ts `execute`）。
-
-### 3.2 binding 清单（官方插件）
-
-`~/.minimax/v2/plugin-cache/official/sha256-tree-v1-b9fdb15…/bindings/computer.binding.json`：
-
-```json
-{
-  "bindingId": "computer-control",
-  "logicalToolName": "computer.control",
-  "hostCapability": { "id": "computer.use", "version": 1 },
-  "requiredSkills": ["computer-use"],
-  "allowedSurfaces": ["interactive"]
-}
+```
+模型（Anthropic Messages）
+ └─ ① 插件准入 initialize.ts：官方插件 computer-use + hostCapabilities['computer-use']
+     │    才 setEnabled(true)；插件吊销立即 setEnabled(false) 并 client.release()
+     └─ ② 工具目录装配：先剔除全部 computer_*，仅当 computerUseActive（用户按会话选中 CU）
+         │    且 client 就绪才重建回注 —— 未启用 = 模型根本看不到这些工具
+         └─ ③ 执行复查 isComputerUseEnabled() + AbortController 全局注册表
+                 （setEnabled(false) / /computer-use/abort 即时掐断在途 CUA 调用）
+             └─ utility process mavis-cua ── MessagePort {version:1, requestId, generation}
+                 └─ CuaDriver（Rust）→ AX/UIA · CGEvent HID · ScreenCaptureKit + TCC 双权限
 ```
 
-宿主侧适配器 `host-capability/computer.ts`：`selectTargets = tools.filter(t => t.def.name.startsWith('computer_'))`，原样透出（不改名）。binding 限定 `allowedSurfaces: ["interactive"]` —— 仅交互式会话可用（后台/cron 会话不可用）。
+binding 声明（`bindings/computer.binding.json`）：`hostCapability: computer.use v1`、`requiredSkills:["computer-use"]`、`allowedSurfaces:["interactive"]`——仅交互式会话可用，后台/cron 会话不可用；宿主适配器对 `computer_` 前缀工具原样透出（不改名）。完整 JSON 见 [schemas/bindings.json](../../source/minimax-code/schemas/bindings.json)。原生与 MCP 两条路径共用 `computer_` 前缀（canonical-tool-policy 明文）。
 
-### 3.3 utility process 与通道
+## 进程与租约
 
-`index.js`（宿主门面）流程：
+**每次重建 generation +1，旧进程/旧通道按 `computer_generation_mismatch` 拒绝串话。**
 
-1. 首次 CU 激活时 `ensureCuaUtilityStarted()`：`utilityProcess.fork(cua-entry.js)`，创建 `MessageChannelMain`，port1 发给子进程（`cua-connect`），port2 留作控制口。
-2. 子进程 ready 后回 `cua-ready`（30s 超时）；宿主再派生"运行时通道"（`cua-runtime-connect`）并 handoff 给 local-runtime。
-3. 每次重建 generation +1；所有控制消息校验 `generation` 防止旧进程/旧通道串话（`computer_generation_mismatch`）。
-4. 子进程把 stdout/stderr 以行缓冲结构化日志回传（`cua-output-buffer`）。
+| 机制 | 事实 |
+|---|---|
+| utility 通道 | 首次激活 `utilityProcess.fork(cua-entry.js)` + MessageChannelMain；子进程 ready 30s 超时；macOS 下 `--message-loop-type-ui` |
+| 驱动会话 | 每会话一个命名驱动会话，空闲过期自动复活但**绝不重放输入动作** |
+| 请求信封 | `{version:1, requestId, kind, sessionId, turnId, generation, leaseId?, payload}`；取消 cua-cancel / 释放 cua-release / 关闭 cua-shutdown |
+| lease | 变更类请求（除 6 个观察 kind）必须持有；单持有者（他者得 "Another conversation owns the computer control lease."）；带 TTL，显式释放或会话结束释放 |
+| 宿主联动 | CU 活动期接电源管理防休眠；lease 释放时清指针/遮罩/预览 |
 
-`cua-utility-server.js`（CUA utility 内部）：
+## 17 个 computer_* 工具
 
-- 通过 `import('@trycua/cua-driver')` 创建 `CuaDriver`（Rust 原生实例），启动即读 `driver.metadata()`（含 driverVersion）。
-- 每个会话一个命名驱动会话：`callCuaToolInSession` 先幂等调用 `start_session {session: <sessionId>}`，再派发实际工具；空闲过期后自动复活，**绝不重放输入动作**。
-- 请求信封 `{version:1, requestId, kind, sessionId, turnId, generation, leaseId?, payload}`；响应 `{ok, result}` 或 `{ok:false, error:{code, message, completion:'not_started'|'unknown'}}`。取消用 `cua-cancel`，释放用 `cua-release`，关闭用 `cua-shutdown`。
+**双路由是主旋律：element_token（background，AX/UIA 注入不抢焦点，默认）与 x/y（foreground，HID+抢焦点，需公告）互斥，混用直接拒绝。**
 
-### 3.4 控制租约（lease）
+| 工具 | kind → 驱动工具 | 语义 |
+|---|---|---|
+| `computer_app_list` | app_list → `list_apps` | 发现运行中/已安装应用；未运行应用返回 bundle_id 供直接 launch |
+| `computer_window_list` | window_list → `list_windows` | 某进程原生窗口精确清单（pid 必填） |
+| `computer_display_list` | display_list → 宿主自有 `host_display_list` | 显示器边界/工作区/缩放/光标坐标（Electron screen API，不走驱动） |
+| `computer_window_set_frame` | window_set_frame → `set_window_frame` | 移动/缩放窗口；desktop 坐标而非截图像素 |
+| `computer_desktop_state` | desktop_state → `get_desktop_state` | 主显示器截图（多显示器固定主屏，工具描述明示刻意门面） |
+| `computer_app_launch` | app_launch → `launch_app` | 后台启动；macOS 可用 file:// URL 开文档 |
+| `computer_app_activate` | app_activate → `bring_to_front` | 持久激活抢焦点；描述强制要求事先向用户说明 |
+| `computer_app_state` | app_state → `get_window_state` | **核心观察**：AX/UIA 语义树 + 可选窗口截图 + element_token，query 支持语义过滤 |
+| `computer_click` | click → `click` / `double_click` | token 或坐标定位（互斥，混用报 `computer_conflicting_input_target`） |
+| `computer_drag` | drag → `drag` | macOS 0.22.1 **仅支持 foreground**（工具描述写死，防模型探测不可用路由） |
+| `computer_type` | type → `type_text` | UTF-8 文本输入；明确禁止 shell/AppleScript 替代 |
+| `computer_set_value` | set_value → `set_value` | 仅可访问性写值，无 delivery_mode；值变了≠输入处理器执行过 |
+| `computer_select_text` | select_text → `hotkey [Cmd/Ctrl, a]` | 全选字段文本；foreground 坐标路由先点击聚焦 |
+| `computer_key` | key → `press_key` / `hotkey` | 单键名 + 分离修饰键数组；foreground+坐标+修饰键时改派 `hotkey` |
+| `computer_scroll` | scroll → `scroll` | amount 是滚轮格数（1-50）**不是像素** |
+| `computer_secondary_action` | secondary_action → `invoke_menu` | 按完整菜单路径调用原生菜单；其余 AX 动作名 fail-closed |
+| `computer_verify_state` | verify_state → `verify_state` | 结构化后置条件验证：1-8 谓词 AND、timeout ≤10s、stable_samples 1-5 |
 
-- **变更类请求**（`isMutatingRequest`：除 `app_list`/`window_list`/`display_list`/`desktop_state`/`app_state`/`verify_state` 之外的 kind）必须持有 lease；观察类请求不占租约。
-- 单持有者：另一个会话的变更请求会收到 "Another conversation owns the computer control lease."；lease 带 TTL 定时器（`leaseTimer`），`cua-release`（显式，按 sessionId/turnId 去重，FIFO 缓存 64 条已释放 turn）或会话结束即释放。
-- 宿主侧联动：`setComputerUseActive(activeRequestCount > 0)` 接电源管理（防休眠）；lease 释放时清指针/遮罩/预览。
+通用参数机制：定位参数允许显式 `null`（抑制弱模型乱填 0 值坐标）；`desktop` scope 仅对 click/key/type 开放且不接受坐标；窗口类错误由宿主翻译成"刷新 app_list → window_list → 用观察到的 window_ref → 禁止猜相邻窗口、禁止改用 Bash/AppleScript"的修复指令返回给模型。
 
-## 4. 权限模型（macOS TCC）
+## 结果信封与反幻觉
 
-`dist/main/modules/screenshot/permission.js` + `cuPermission.ipc.js`：
+- `content` 首块为文本摘要 + `type:'image'` 截图块（上限 7MB，畸形格式不注入，fail-closed）；结构化 JSON 进 `details.structuredJson` 供 UI 用（LLM 不读）。
+- `app_state` 若窗口 AX 未解析（`ax_window_unresolved`）**丢弃全部图片**并标 isError（防闭窗裁剪画面串入其他应用内容）。
+- 反幻觉注入：无截图观察提示"别把上一张图当当前状态"；点击无 effect 元数据时提示"回执不证明效果，先读新状态"。
 
-- `getComputerUsePermissionStatus()` 返回 `{screenRecording, accessibility}`：screenRecording 走 macOS TCC 查询/`desktopCapturer.getSources` 触发系统弹窗；accessibility 走 `systemPreferences.isTrustedAccessibilityClient(false)`。非 macOS 平台返回 `not-required`（代码注释明确：不能把 `not-required` 误用于授权物理屏幕读取）。
-- CUA 每次请求派发前都会向宿主发 `cua-permissions-request`，宿主逐项校验 `granted|not-required`，不满足则**拒绝该请求**、清预览目标，并向所有窗口广播 `cu:permission:required`（Renderer 弹权限引导窗 `permission-guide.js`）。IPC 通道：STATUS / REQUEST / OPEN_SETTINGS（可打开系统设置对应面板）。
-- `@trycua/cua-driver/dist/electron.js` 亦导出 `requestMacOSPermissions` / `hasRequiredMacOSPermissions`（accessibility && screenRecording），与宿主检查一致。
+## 动作机制：background 拒绝不升级
 
-## 5. 完整工具面（17 个 computer_* 工具）
+| 规则 | 事实 |
+|---|---|
+| foreground 判定 | app_activate/app_launch/secondary_action、`delivery_mode:'foreground'`、desktop 目标一律 foreground，并触发桌面遮罩 + 窗口移交 |
+| 拒绝不升级 | background 被应用拒绝时**绝不**自动改发 foreground；已知不可靠场景直接返回结构化错误（`shouldAvoidNativeBackgroundClick`），升级决定留给模型+用户 |
+| hotkey 规避 | foreground 快捷键的坐标路由改用 `hotkey`（带焦点点击+标志位 HID 事件），避开 macOS 14 修饰键和弦丢失 |
+| UI 示能 | 半透明遮罩条（图标+文案+**停止按钮**，等价 POST abort）、54px 指针动画（`setContentProtection`，不出现在截图，不读不动真实光标）、窗口级预览、抢焦点前后主窗口交还 |
+| 可观测性 | action_dispatch/mapped/result 结构化日志 + CU 专用 5MB×4 轮转日志；`MAVIS_CUA_DIAGNOSTICS=1` 出 AX/后台键盘诊断 |
+| 附加联动 | `app_launch` 后专门的窗口观察步骤验证新窗口出现 |
 
-定义：`@mavis/local-runtime-v2/src/service/computer-use/tools.ts`（schema 均为 `additionalProperties:false` 的 JSON Schema；数值型参数自动接受十进制字符串）。驱动侧映射：`cua-utility-server.js` `mapRequestToCuaTool`。
+## 权限模型（macOS TCC）
 
-| 模型可见工具 | kind（payload 域） | → CUA 驱动工具 | 语义 |
-| --- | --- | --- | --- |
-| `computer_app_list` | app_list（name?） | `list_apps` | 发现运行中/已安装应用；已安装未运行的应用返回 bundle_id 供直接 launch |
-| `computer_window_list` | window_list（pid，required） | `list_windows` | 某进程的原生窗口精确清单（window_ref、on_current_space 等） |
-| `computer_display_list` | display_list | 宿主自有 `host_display_list`（Electron screen API，不走驱动） | 显示器边界/工作区/缩放/光标坐标（electron_dip 空间） |
-| `computer_window_set_frame` | window_set_frame（pid, window_ref, x, y, width?, height?） | `set_window_frame` | 移动/缩放窗口；desktop 坐标而非截图像素 |
-| `computer_desktop_state` | desktop_state | `get_desktop_state` | 主显示器截图（多显示器时**固定主屏**，工具描述明示这是刻意门面） |
-| `computer_app_launch` | app_launch（name/bundle_id/urls; launch_path 仅 Windows） | `launch_app` | 后台启动；macOS 可用 file:// URL 开文档 |
-| `computer_app_activate` | app_activate（pid, window_ref?） | `bring_to_front` | 持久激活（抢焦点）；描述强制要求事先向用户说明 |
-| `computer_app_state` | app_state（pid, window_ref, include_screenshot?, query?, max_depth?, max_elements?） | `get_window_state` | **核心观察**：AX/UIA 语义树 + 可选窗口截图 + element_token；query 支持语义文本过滤 |
-| `computer_click` | click（scope window/desktop; element_token 或 x/y; action auto/press/show_menu/pick/confirm/cancel/open; button/click_count/delivery_mode） | `click` / `double_click`（AXOpen 专用路径） | 元素 token 定位或截图像素坐标定位，二者互斥（混用报 `computer_conflicting_input_target`） |
-| `computer_drag` | drag（from_x/y → to_x/y, delivery_mode） | `drag` | macOS 0.22.1 **仅支持 foreground**（工具描述写死，避免模型探测已知不支持的 background 路由） |
-| `computer_type` | type（text, element_token 或 x/y, delivery_mode） | `type_text` | UTF-8 文本输入；明确禁止用 shell/AppleScript 替代 |
-| `computer_set_value` | set_value（value, element_token） | `set_value` | **仅可访问性写值，无 delivery_mode**；值变了不等于输入处理器执行过，需验证依赖 UI |
-| `computer_select_text` | select_text（element_token 或 foreground x/y） | `hotkey [Cmd/Ctrl, a]` | 全选字段文本；foreground 坐标路由会先点击聚焦 |
-| `computer_key` | key（key + modifiers[cmd/win/shift/option/alt/ctrl/fn], scope, element_token/x/y, delivery_mode） | `press_key`；foreground+坐标+修饰键时改派 `hotkey` | 单键名 + 分离的修饰键数组；箭头键名归一化 |
-| `computer_scroll` | scroll（direction, by line/page, amount 1-50 滚轮格, 定位同上） | `scroll` | amount 是滚轮格数**不是像素** |
-| `computer_secondary_action` | secondary_action（action 仅 `show_menu`, path 数组） | `invoke_menu` | 按完整菜单路径调用原生菜单；其余 AX 动作名 fail-closed（`computer_secondary_action_unsupported`） |
-| `computer_verify_state` | verify_state（expect 1-8 谓词 AND, timeout_ms ≤10000, stable_samples 1-5, include_screenshot?） | `verify_state` | 结构化后置条件验证：window.exists/bounds、element role+label_contains × exists/value_equals/enabled/selected |
+**权限缺失即 fail-closed，且每次派发前都复查。** screenRecording 走 TCC 查询 / `desktopCapturer` 触发系统弹窗，accessibility 走 `isTrustedAccessibilityClient`；CUA 每次请求派发前发 `cua-permissions-request`，宿主逐项校验 `granted|not-required`，不满足则拒绝该请求、清预览目标并向所有窗口广播权限引导（STATUS/REQUEST/OPEN_SETTINGS 三通道）。非 macOS 返回 `not-required`（代码注释明确不得误用于物理屏幕读取）。
 
-**通用参数机制**（tools.ts `computerUseProperties`）：
-- `click/type/key/select_text/scroll` 的 `pid/window_ref/element_token/x/y` 允许显式 `null`（"null 等价于省略"），用于抑制弱模型乱填 0 值坐标；`element_token` 与 `x/y` 同时出现会被映射层直接拒绝。
-- `desktop` scope 仅对 click/key/type 开放（`computer_unsupported_desktop_action`），且 desktop key/type 不接受坐标。
-- 错误恢复文本由宿主生成（`windowTargetRecovery`）：`computer_window_not_found` / `computer_ambiguous_window_target` / `computer_window_ref_required` 会被翻译成一段"刷新 app_list → window_list → 用观察到的 window_ref → 禁止猜相邻窗口 ID → 禁止改用 Bash/AppleScript"的修复指令返回给模型。
+## 安全模型六层
 
-### 5.1 结果信封与观察产物（client.ts `computerUseToolResult`）
+| 层 | 机制 |
+|---|---|
+| OS | 屏幕录制 + 辅助功能 TCC 双授权，缺失即拒绝请求 |
+| 准入 | 官方插件 + Host Binding + 会话级选择（interactive surface only） |
+| 并发 | 单租约互斥 + generation fencing + AbortController 注册表 |
+| 提示 | background 优先 / foreground 公告义务 / 禁止 shell·AppleScript·浏览器自动化替代 / verify_state 合同 / 禁止猜窗口与凭据（17 工具描述 + 插件内 SKILL.md） |
+| 展示 | 桌面遮罩 + 一键停止 + 指针可视化 + 窗口移交 + 活动期防休眠 |
+| 审计 | CU 专用轮转日志 + 诊断模式 |
 
-- `content` 首块为 text（已排版的人类/模型可读摘要），随后附 `type:'image'` 截图块（上限 7MB，fail-closed：畸形/不支持格式不注入）。`computer_app_state` 若窗口 AX 未解析（`degraded_reason` 以 `ax_window_unresolved` 开头）则**丢弃所有图片**（防止闭窗裁剪画面串入其他应用内容），并将结果标 `isError`。
-- 无截图的 `computer_app_state` 会在文本头部注入提示："本次观察不含截图，不要把上一张图当作当前渲染状态"。
-- `computer_click` 若返回无结构化 effect 元数据，注入 "点击回执不证明效果，先读新状态" 的反幻觉提示（`missingClickEffectGuidance`）。
-- 结构化 JSON 透传到 `details.structuredJson` 供 UI/调用方使用（LLM 不读）。
+## 与 Claude 工具协议的关系（CU 视角）
 
-## 6. 动作机制（驱动层）
-
-- 交付路由判定（`cua-utility-server.js`）：`app_activate`/`app_launch`/`secondary_action`、`delivery_mode:'foreground'`、`target.kind==='desktop'` 一律按 foreground 计并触发宿主 `onOperation`（显示桌面遮罩 + 窗口移交）；其余为 background（AX/UIA 注入，无需抢焦点）。
-- **background 拒绝不升级**：`callCuaToolWithDeliveryMode` 保证"background 被应用拒绝时，运行时绝不自动改发 foreground"；0.22.1 上 macOS background 原生 click 存在已知不可靠场景时直接返回结构化错误（`shouldAvoidNativeBackgroundClick`），把升级决定留给模型+用户。
-- foreground 快捷键在该驱动版本的坐标路由上改用 `hotkey`（带焦点点击 + 标志位 HID 事件），避开 macOS 14 上修饰键和弦丢失问题（代码注释）。
-- UI 提示层（全部主进程创建的免交互窗口，`setIgnoreMouseEvents(true)`）：
-  - `cua-overlay.js` `CuaDesktopOverlay`：foreground/桌面级操作期间在显示器上覆盖半透明提示条（MiniMax Code 图标 + 文案 + **停止按钮**，点击等价于 `POST /minimax-desktop/api/v1/session/:id/abort`）；`cua-window-handoff.js` 负责把 MiniMax 主窗口在抢焦点前后交还。
-  - `cua-pointer.js` `CuaPointer`：54px 指针动画窗口跟随目标坐标（tip ≈ (21,21)），`setContentProtection(true)`（不出现在截图里）；它**不读取也不移动**用户真实光标。
-  - `cua-preview.js` / `cua-preview-target.js`：仅当目标解析为具体 window（pid+window_id）时向 UI 发布预览目标（桌面观察不改变预览），应用内可实时看到被控窗口。
-- 可观测性：每次动作有 `action_dispatch/action_mapped/action_result` 结构化日志（outcome/route/effect/verificationStatus/durationMs）；CU 专用日志文件走 `computer-use-log-writer`（5MB × 4 轮转）；开发期 `MAVIS_CUA_DIAGNOSTICS=1` 额外输出 AX 窗口诊断与后台键盘诊断（`cua-ax-diagnostics.js`）。
-- 其他宿主联动：`computer_app_launch` 后有专门的窗口观察步骤（`cua-launch-observation.js`，验证新窗口确实出现）；`power` 模块在 CU 活动期间保持系统唤醒（配合用户设置 `keepAwake`）。
-
-## 7. 安全模型小结
-
-| 层 | 机制 | 证据 |
-| --- | --- | --- |
-| OS | macOS 屏幕录制 + 辅助功能 TCC 双授权，缺失即 fail-closed | permission.js、cua-permissions-request 往返 |
-| 准入 | 官方插件 + Host Binding + 会话级选择（interactive surface only） | initialize.ts、computer.binding.json |
-| 并发 | 单租约互斥 + generation fencing + AbortController 注册表 | cua-utility-server.js、tools.ts |
-| 提示 | background 优先 / foreground 公告义务 / 禁止 shell·AppleScript·浏览器自动化替代 / verify_state 合同 / 禁止猜窗口与凭据 | 17 个工具 description 与 skills/computer-use/SKILL.md（插件内正文，明确"Adapted from official CUA Driver 0.22.1 skill"） |
-| 展示 | 桌面遮罩 + 一键停止 + 指针可视化 + 窗口移交 + 活动期防休眠 | cua-overlay/pointer/handoff、power |
-| 审计 | CU 专用轮转日志、诊断模式 | computer-use-log-writer.js、cua-logging.js |
-
-## 8. 与 Claude 工具协议的关系（CU 视角）
-
-- 工具描述直接写在 `description` 字符串里（Claude Code 风格的长指令式描述，含大量反幻觉与恢复指令），schema 为 JSON Schema（typebox `Type.Unsafe` 包装），经 `@mavis/agent-core` 的 PiTurnRunner 透传为 pi `AgentTool.parameters`，再由 pi-ai anthropic provider 编码为 Anthropic Messages `tools` 字段 —— 与 Claude 的 `computer_use` beta 工具**不是同一协议**（本机未见 `computer_20250124`/`computer-use` beta 工具类型），而是自建 17 工具面 + Anthropic 消息协议承载。`pi-ai` 的 anthropic provider 代码中未见 Anthropic `computer-use` beta header 的引用。
-- 图片回传采用标准 `content:[{type:'image',...}]` 块 —— 与 Claude 工具结果的 image 块契约一致。
+**不是 Anthropic computer-use beta（未见 `computer_20250124` 或 beta header），而是自建 17 工具面借 Anthropic Messages 协议承载。** 长指令式 description + JSON Schema（typebox 包装）经 PiTurnRunner → pi-ai 编码进 `tools` 字段；截图以标准 `content:[{type:'image',…}]` 块回传，与 Claude 工具结果的 image 契约一致。

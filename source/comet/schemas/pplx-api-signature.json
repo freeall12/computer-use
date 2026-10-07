@@ -1,0 +1,1 @@
+{"namespace":"perplexity.signature","types":[],"functions":[{"parameters":[{"name":"payloadJson","type":"string"}],"returns_async":{"name":"callback","optional":true,"parameters":[{"name":"jwt","type":"string"}]},"name":"signPayload","type":"function"}],"properties":{},"events":[],"platforms":null,"deprecated":null}

@@ -3,29 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱</title>
-<meta name="description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
-<meta name="keywords" content="Computer Use, Browser Use, Coding Agent, AI Agent, 逆向分析, reverse engineering, agent tools, MCP, CUA, ZCode, Codex, Claude Code, Cursor, MiniMax, Kimi, Qoder, Grok, Devin, Goose, MiMo">
+<title>Agent Computer Use Atlas · 20 个 Coding Agent 的 CU/BU 逆向图谱</title>
+<meta name="description" content="20 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor、Browser Use、Agent TARS、Dia、Atlas 等 20 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta name="keywords" content="Computer Use, Browser Use, Coding Agent, AI Agent, 逆向分析, reverse engineering, agent tools, MCP, CUA, ZCode, Codex, Claude Code, Cursor, MiniMax, Kimi, Qoder, Grok, Devin, Goose, MiMo, Browser Use, Agent TARS, Stagehand, Self-Operating Computer, Comet, Dia, ChatGPT Atlas, Fellou">
 <meta name="author" content="freeall12">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1e1e20">
 <link rel="canonical" href="https://freeall12.github.io/computer-use/">
 <!-- Open Graph -->
-<meta property="og:title" content="Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱">
-<meta property="og:description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta property="og:title" content="Agent Computer Use Atlas · 20 个 Coding Agent 的 CU/BU 逆向图谱">
+<meta property="og:description" content="20 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor、Browser Use、Agent TARS、Dia、Atlas 等 20 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://freeall12.github.io/computer-use/">
 <meta property="og:image" content="https://freeall12.github.io/computer-use/assets/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Agent Computer Use Atlas：12 个 Agent 光标在同一块 macOS 桌面上作业的交互式图谱主页截图">
+<meta property="og:image:alt" content="Agent Computer Use Atlas：20 个 Agent 光标在同一块 macOS 桌面上作业的交互式图谱主页截图">
 <meta property="og:site_name" content="Agent Computer Use Atlas">
 <meta property="og:locale" content="zh_CN">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Agent Computer Use Atlas · 12 个 Coding Agent 的 CU/BU 逆向图谱">
-<meta name="twitter:description" content="12 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor 等 12 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
+<meta name="twitter:title" content="Agent Computer Use Atlas · 20 个 Coding Agent 的 CU/BU 逆向图谱">
+<meta name="twitter:description" content="20 个主流 Coding Agent 的 Computer Use / Browser Use 能力只读逆向图谱：ZCode、Codex、Claude、Cursor、Browser Use、Agent TARS、Dia、Atlas 等 20 家的架构、工具面、安全模型与谱系实锤，附能力矩阵、20 个可复用模式与可运行源码。">
 <meta name="twitter:image" content="https://freeall12.github.io/computer-use/assets/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232b2b2e'/%3E%3Cpath d='M9 6l0 16.4 4.6-4 2.9 6.8 3-1.3-2.9-6.7 5.9-.3z' fill='%23f5f5f7'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
@@ -40,7 +40,7 @@
       "url": "https://freeall12.github.io/computer-use/",
       "name": "Agent Computer Use Atlas",
       "alternateName": "Agent Atlas",
-      "description": "12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱：交互式桌面演示与静态研究内容。",
+      "description": "20 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱：交互式桌面演示与静态研究内容。",
       "inLanguage": "zh-CN",
       "publisher": {
         "@type": "Organization",
@@ -52,15 +52,17 @@
     {
       "@type": "Dataset",
       "@id": "https://freeall12.github.io/computer-use/#dataset",
-      "name": "12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向数据集",
-      "description": "基于 2026-10-06 macOS arm64 本机安装版本的只读静态逆向研究：12 个 Agent 分册（48 份文档、7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现。回答三个问题：它们怎么实现的？谁抄谁？我们能学到什么？",
+      "name": "20 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向数据集",
+      "description": "基于 2026-10-06/07 macOS arm64 本机安装版本的只读静态逆向研究：20 个 Agent 分册（80 份文档、10500+ 行中文证据链）、能力矩阵（首批 12 家横向对比）、20 个可复用设计模式与 17 套可运行参考实现。回答三个问题：它们怎么实现的？谁抄谁？我们能学到什么？",
       "url": "https://github.com/freeall12/computer-use",
       "sameAs": "https://freeall12.github.io/computer-use/",
       "keywords": [
         "Computer Use", "Browser Use", "Coding Agent", "AI Agent",
         "逆向工程", "reverse engineering", "agent tools", "MCP", "CUA",
         "UI automation", "ZCode", "Codex", "Claude Code", "Cursor",
-        "MiniMax", "Synara", "Kimi", "Qoder", "Grok", "Devin", "Goose", "MiMo"
+        "MiniMax", "Synara", "Kimi", "Qoder", "Grok", "Devin", "Goose", "MiMo",
+        "Browser Use", "Agent TARS", "Stagehand", "Self-Operating Computer",
+        "Comet", "Dia", "ChatGPT Atlas", "Fellou"
       ],
       "license": "https://github.com/freeall12/computer-use/blob/main/LICENSE",
       "creator": { "@id": "https://github.com/freeall12" },
@@ -80,10 +82,10 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "这项研究覆盖了哪 12 个 Agent？",
+          "name": "这项研究覆盖了哪 20 个 Agent？",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code（MiniMax）、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）。分析基线为 2026-10-06 的 macOS arm64 本机安装版本，方法为只读静态逆向（打包 JS、原生二进制符号、随包文档、配置与日志），未运行被分析对象、未抓包。"
+            "text": "首批 12 家：ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code（MiniMax）、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）；2026-10-07 扩展 8 家：Browser Use（开源 MIT）、Agent TARS（字节跳动）、Stagehand（Browserbase）、Self-Operating Computer（OthersideAI）、Comet（Perplexity）、Dia（The Browser Company）、ChatGPT Atlas（OpenAI）、Fellou（Fellou AI，已停更）。分析基线为 macOS arm64 本机安装版本，方法为只读静态逆向（打包 JS、原生二进制符号、随包文档、配置与日志），未运行被分析对象、未抓包。"
           }
         },
         {
@@ -104,10 +106,10 @@
         },
         {
           "@type": "Question",
-          "name": "12 家 Agent 的 Computer Use 有哪几种执行基线？",
+          "name": "首批 12 家 Agent 的 Computer Use 有哪几种执行基线？扩展 8 家补了哪些极值？",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "四种：① 本地 Helper/驱动执行（9 家，Helper 持 TCC 权限 + 本地 IPC 鉴权 + 工具面隔离原生 API，其中 7 家独立 Helper 进程）；② 全云端执行、本地投影（Devin：工具在云 VM，本地只留读写检索与能力位）；③ 执行层外包透传（Goose：单工具透传第三方 Peekaboo CLI）；④ 完全无原生能力（Grok CLI：16 工具纯 coding，完整版才有原生 CU/BU）。"
+            "text": "首批 12 家分四种：① 本地 Helper/驱动执行（9 家，Helper 持 TCC 权限 + 本地 IPC 鉴权 + 工具面隔离原生 API，其中 7 家独立 Helper 进程）；② 全云端执行、本地投影（Devin：工具在云 VM，本地只留读写检索与能力位）；③ 执行层外包透传（Goose：单工具透传第三方 Peekaboo CLI）；④ 完全无原生能力（Grok CLI：16 工具纯 coding，完整版才有原生 CU/BU）。扩展 8 家补入新极值：纯视觉执行（Agent TARS：截图→VLM→坐标）、纯库形态零 CU（Browser Use）、云端全控制委派（Fellou/Javis）、页内虚拟光标（Atlas，无 OS 级）。"
           }
         },
         {
@@ -123,7 +125,7 @@
           "name": "研究内容可以复用吗？包含什么？",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "可以。仓库以 MIT 许可开源，含 48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵（comparison/capability-matrix.md）、20 个可复用设计模式（reusable/patterns.md，如独立 Helper 进程、防重放、控制租约、MCP 挂载、错误即指令协议）与 12 套可运行参考实现（source/）。不含任何专有源码、二进制或凭据，不含 DRM 规避。"
+            "text": "可以。仓库以 MIT 许可开源，含 20 个 Agent 分册、80 份文档（10500+ 行中文证据链）、能力矩阵（comparison/capability-matrix.md，首批 12 家横向对比）、20 个可复用设计模式（reusable/patterns.md，如独立 Helper 进程、防重放、控制租约、MCP 挂载、错误即指令协议）与 17 套可运行参考实现（source/）。不含任何专有源码、二进制或凭据，不含 DRM 规避。"
           }
         }
       ]
@@ -134,9 +136,9 @@
 </head>
 <body>
 <!-- 语义锚点：全页唯一 h1（视觉隐藏，供爬虫 / 读屏 / 无 JS 场景识别项目名） -->
-<h1 class="vh">Agent Computer Use Atlas：12 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱</h1>
+<h1 class="vh">Agent Computer Use Atlas：20 个主流 Coding Agent 的 Computer Use / Browser Use 能力逆向图谱</h1>
 <a class="skip" href="#stage">跳到主内容</a>
-<noscript><p class="seo-note">当前浏览器未启用 JavaScript：交互式桌面动画不可用，但下方静态内容层包含本项目全部核心内容（12 个 Agent 速览、核心发现、常见问题与资源链接），可正常阅读。</p></noscript>
+<noscript><p class="seo-note">当前浏览器未启用 JavaScript：交互式桌面动画不可用，但下方静态内容层包含本项目全部核心内容（20 个 Agent 速览、核心发现、常见问题与资源链接），可正常阅读。</p></noscript>
 
 <!-- ═══ 桌面 ═══ -->
 <main class="stage" id="stage" aria-label="交互式桌面舞台：多 Agent 光标在虚拟桌面上作业">
@@ -167,7 +169,7 @@
     <!-- 下拉菜单（装饰项 + 真实功能项） -->
     <div class="mb-drop" id="m-file" role="menu" aria-label="文件菜单" hidden>
       <button class="md-item" type="button" role="menuitem" data-act="repo">打开 GitHub 仓库…</button>
-      <button class="md-item" type="button" role="menuitem" data-act="reports">打开 12 份逆向报告…</button>
+      <button class="md-item" type="button" role="menuitem" data-act="reports">打开 20 份逆向报告…</button>
       <div class="md-sep" role="separator"></div>
       <button class="md-item" type="button" role="menuitem" data-act="closewin" id="menuCloseItem">关闭档案窗口</button>
     </div>
@@ -187,9 +189,9 @@
 
   <!-- 桌面图标（引流触点：单击选中 · 双击打开） -->
   <div class="desk-icons">
-    <a class="d-icon" href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener" title="打开 12 份逆向报告">
+    <a class="d-icon" href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener" title="打开 20 份逆向报告">
       <svg class="d-thumb" viewBox="0 0 52 44" aria-hidden="true"><path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h11.9l4.4 4.4H45a3.5 3.5 0 0 1 3.5 3.5v4.6h-47Z" fill="#3d82e8"/><path d="M4.6 12.5h45.8a2.6 2.6 0 0 1 2.57 3l-3.1 20.4a4 4 0 0 1-3.95 3.4H7.08a4 4 0 0 1-3.95-3.4L.03 15.5a2.6 2.6 0 0 1 2.57-3Z" fill="#4aa3ff"/></svg>
-      <span>逆向报告 ×12</span>
+      <span>逆向报告 ×20</span>
     </a>
     <a class="d-icon" href="https://github.com/freeall12/computer-use/tree/main/source" target="_blank" rel="noopener" title="打开可运行参考实现">
       <svg class="d-thumb" viewBox="0 0 52 44" aria-hidden="true"><path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h11.9l4.4 4.4H45a3.5 3.5 0 0 1 3.5 3.5v4.6h-47Z" fill="#3d82e8"/><path d="M4.6 12.5h45.8a2.6 2.6 0 0 1 2.57 3l-3.1 20.4a4 4 0 0 1-3.95 3.4H7.08a4 4 0 0 1-3.95-3.4L.03 15.5a2.6 2.6 0 0 1 2.57-3Z" fill="#4aa3ff"/><path d="M20.5 21.5 16 26l4.5 4.5M31.5 21.5 36 26l-4.5 4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".92"/></svg>
@@ -225,6 +227,7 @@
           <li><b>ZCode</b> · 14 CU 工具 · 自研 Helper</li>
           <li><b>Codex</b> · js REPL 三工具 · 四后端</li>
           <li><b>Claude Code</b> · ~40 工具 · 三控制域</li>
+          <li><b>Browser Use</b> · 24 动作 · 纯 BU 库</li>
         </ul>
       </div>
     </div>
@@ -249,7 +252,7 @@
           <svg class="i-play" viewBox="0 0 10 12" aria-hidden="true"><path d="M1.5 1.2v9.6L9 6Z" fill="currentColor"/></svg>
           <svg class="i-pause" viewBox="0 0 10 12" aria-hidden="true"><path d="M1.5 1.5h2.6v9H1.5ZM5.9 1.5h2.6v9H5.9Z" fill="currentColor"/></svg>
         </button>
-        <div class="mu-meta"><strong>Atlas Groove</strong><span>12 agents · live</span></div>
+        <div class="mu-meta"><strong>Atlas Groove</strong><span>20 agents · live</span></div>
       </div>
       <div class="bars" id="mu-bars" aria-hidden="true"></div>
       <div class="mu-slider-row">
@@ -264,9 +267,9 @@
   <div class="cursors" id="cursors"></div>
 
   <!-- 窄屏降级：Agent 卡片列表 -->
-  <div class="agents-grid" id="agentsGrid" aria-label="12 个 Agent 列表"></div>
+  <div class="agents-grid" id="agentsGrid" aria-label="20 个 Agent 列表"></div>
 
-  <!-- Dock：仓库 / 文档 · 12 个 Agent · 访问 GitHub -->
+  <!-- Dock：仓库 / 文档 · 20 个 Agent · 访问 GitHub -->
   <nav class="dock" aria-label="Dock：项目链接与 Agent 列表">
     <a class="dk-item" href="https://github.com/freeall12/computer-use" target="_blank" rel="noopener" data-tip="GitHub 仓库">
       <span class="dk-ic dk-svg" aria-hidden="true"><svg viewBox="0 0 24 24"><g fill="none" stroke="#1d1d1f" stroke-width="1.7" stroke-linecap="round"><circle cx="6" cy="6" r="2.3"/><circle cx="6" cy="18" r="2.3"/><circle cx="18" cy="8" r="2.3"/><path d="M6 8.3v7.4M18 10.3c0 3.4-3 4.2-6.2 4.7-2.2.4-3.9 1-4.4 2.3"/></g></svg></span>
@@ -285,10 +288,10 @@
      内容真实存在于 HTML：无 JS 时完整可读；JS 启动后由 html.js-on 规则隐藏。
      服务对象：搜索引擎爬虫（首波抓取）、AI 生成引擎（GPTBot/PerplexityBot 等）、纯阅读器。 -->
 <section id="seo-content" class="seo-layer" aria-label="项目静态内容">
-  <h2>这是什么：一项对 12 个 Coding Agent 桌面控制能力的只读逆向研究</h2>
-  <p><strong>Agent Computer Use Atlas</strong> 是对 12 个主流 Coding Agent 在<strong>同一台 macOS 机器上</strong>的桌面控制（Computer Use / CU）与浏览器控制（Browser Use / BU）能力所做的只读静态逆向研究：48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现，回答三个问题——<strong>它们怎么实现的？谁抄谁？我们能学到什么？</strong>分析基线为 2026-10-06（macOS arm64，各产品当日本机安装版本）。在线主站：<a href="https://freeall12.github.io/computer-use/">https://freeall12.github.io/computer-use/</a>，源仓库：<a href="https://github.com/freeall12/computer-use">github.com/freeall12/computer-use</a>。</p>
+  <h2>这是什么：一项对 20 个 Coding Agent 桌面控制能力的只读逆向研究</h2>
+  <p><strong>Agent Computer Use Atlas</strong> 是对 20 个主流 Coding Agent 在<strong>同一台 macOS 机器上</strong>的桌面控制（Computer Use / CU）与浏览器控制（Browser Use / BU）能力所做的只读静态逆向研究：20 份分册、80 份文档（10500+ 行中文证据链）、能力矩阵（首批 12 家横向对比）、20 个可复用设计模式与 17 套可运行参考实现，回答三个问题——<strong>它们怎么实现的？谁抄谁？我们能学到什么？</strong>分析基线为 2026-10-06/07（macOS arm64，各产品当日本机安装版本）。在线主站：<a href="https://freeall12.github.io/computer-use/">https://freeall12.github.io/computer-use/</a>，源仓库：<a href="https://github.com/freeall12/computer-use">github.com/freeall12/computer-use</a>。</p>
 
-  <h2>12 个 Agent 速览（名字 · 厂商 · CU/BU 能力一句话）</h2>
+  <h2>20 个 Agent 速览（名字 · 厂商 · CU/BU 能力一句话）</h2>
   <article class="seo-agent">
     <h3>ZCode（智谱）</h3>
     <p><strong>Computer Use：</strong>14 工具 · ax_native Helper（AX+CGEvent）。<strong>Browser Use：</strong>内嵌 WebView · 单一 js 工具动态面。结论：安全加固最重的自研派——CU SDK 逐字对齐 Codex @oai/cua，stateId / possibly_sent / controller lease / kill switch 为事故驱动的自研加固。</p>
@@ -301,7 +304,7 @@
   </article>
   <article class="seo-agent">
     <h3>Claude Code（Anthropic）</h3>
-    <p><strong>Computer Use：</strong>~40 工具 · 三控制域 · Swift+Rust 双层。<strong>Browser Use：</strong>Chrome 扩展 + native messaging。结论：12 家中工具面拆得最细，tier 权限 + teach mode + 独占锁。</p>
+    <p><strong>Computer Use：</strong>~40 工具 · 三控制域 · Swift+Rust 双层。<strong>Browser Use：</strong>Chrome 扩展 + native messaging。结论：首批 12 家中工具面拆得最细，tier 权限 + teach mode + 独占锁。</p>
     <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/claude-code">参考源码</a></p>
   </article>
   <article class="seo-agent">
@@ -316,7 +319,7 @@
   </article>
   <article class="seo-agent">
     <h3>Synara（独立开发者）</h3>
-    <p><strong>Computer Use：</strong>cua-driver 0.28.2 patched · 33 工具。<strong>Browser Use：</strong>面板 CDP + cua CDP + cookie 导入。结论：12 家中安全工程最重——前台意图授权、Escape 物理急停。</p>
+    <p><strong>Computer Use：</strong>cua-driver 0.28.2 patched · 33 工具。<strong>Browser Use：</strong>面板 CDP + cua CDP + cookie 导入。结论：首批 12 家中安全工程最重——前台意图授权、Escape 物理急停。</p>
     <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/synara">参考源码</a></p>
   </article>
   <article class="seo-agent">
@@ -341,7 +344,7 @@
   </article>
   <article class="seo-agent">
     <h3>Goose（Block）</h3>
-    <p><strong>Computer Use：</strong>computer_control 纯透传 Peekaboo CLI。<strong>Browser Use：</strong>零内置 · 五个 MCP 外挂。结论：执行层完全外包的唯一样本（Apache-2.0），AX 叠加标注是 12 家中唯一 SoM 变体。</p>
+    <p><strong>Computer Use：</strong>computer_control 纯透传 Peekaboo CLI。<strong>Browser Use：</strong>零内置 · 五个 MCP 外挂。结论：执行层完全外包的唯一样本（Apache-2.0），AX 叠加标注是首批 12 家中唯一 SoM 变体。</p>
     <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/goose">参考源码</a></p>
   </article>
   <article class="seo-agent">
@@ -350,40 +353,82 @@
     <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/mimo">参考源码</a></p>
   </article>
 
-  <h2>核心发现 TL;DR（8 条）</h2>
+  <article class="seo-agent">
+    <h3>Browser Use（开源 · MIT）</h3>
+    <p><strong>Computer Use：</strong>无（纯 BU 极端样本）。<strong>Browser Use：</strong>24 动作 · DOM+截图双观察 · CDP 直连。结论：被集成的事实标准库——[index] 句柄、secret 替换与导航围栏，让它成为被最多产品内嵌的 BU 库。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/browser-use/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/browser-use">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Agent TARS（字节跳动 · 开源）</h3>
+    <p><strong>Computer Use：</strong>纯视觉 截图→VLM→坐标。<strong>Browser Use：</strong>dom·visual·hybrid 三模式。结论：纯视觉路线唯一代表——nut-js 合成点击、零 AX 依赖、解析层 50 别名。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/ui-tars/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/ui-tars">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Stagehand（Browserbase · 开源）</h3>
+    <p><strong>Computer Use：</strong>无。<strong>Browser Use：</strong>act·observe·extract 三原语 + 77 确定性 RPC。结论：确定性代码+AI 逃生舱——半自动生产派、MV3 运行时、缓存重放。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/stagehand/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/stagehand">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Self-Operating Computer（OthersideAI · 开源）</h3>
+    <p><strong>Computer Use：</strong>截图→pyautogui 全局合成。<strong>Browser Use：</strong>无（光谱零点）。结论：2023 年的活化石对照组——极简派、安全零基线、YOLO SoM。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/self-operating-computer/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/self-operating-computer">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Comet（Perplexity）</h3>
+    <p><strong>Computer Use：</strong>无 OS 级（标签页边界）。<strong>Browser Use：</strong>内嵌 CRX + 23 私有 API · 云端决策本机执行。结论：云脑+本地手的混合体——浏览器即载体、视口守卫、人类输入封锁。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/comet/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source/comet">参考源码</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Dia（The Browser Company）</h3>
+    <p><strong>Computer Use：</strong>0（SDK 预埋未接）。<strong>Browser Use：</strong>内嵌 Claude Code SDK · 沙箱 JS REPL。结论：披着浏览器的 Claude Code 发行版——claude CLI 2.1.280、45 agent 规格、委派授权门。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/dia/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source">参考源码（源码层说明）</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>ChatGPT Atlas（OpenAI）</h3>
+    <p><strong>Computer Use：</strong>页内虚拟光标（无 OS 级）。<strong>Browser Use：</strong>Operator 血统 computer.* · ARIA ref 快照。结论：同账号不同栈的 Operator 继承者——不走 Sky 栈、Dragonfruit、memories。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/atlas/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source">参考源码（源码层说明）</a></p>
+  </article>
+  <article class="seo-agent">
+    <h3>Fellou（Fellou AI · 已停更）</h3>
+    <p><strong>Computer Use：</strong>云端 Javis 全控制委派。<strong>Browser Use：</strong>Eko 框架 13 工具 · SoM 观察。结论：云端全控制的极端样本——Shadow Browser、产品已停更、MIT 框架。</p>
+    <p><a href="https://github.com/freeall12/computer-use/blob/main/agents/fellou/README.md">完整逆向报告</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source">参考源码（源码层说明）</a></p>
+  </article>
+
+  <h2>核心发现 TL;DR（首批 12 家 · 8 条 + 扩展 1 条）</h2>
   <ol>
     <li><strong>四种执行基线</strong>：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。</li>
     <li><strong>白牌供应链出现了</strong>：Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌，签名 TeamID 与 Cursor 完全一致，安全模型随代工继承。</li>
     <li><strong>四条公开底座被复用</strong>：Cua AI（MiniMax/Synara 内嵌 cua-driver、Kimi 致谢其键盘机制）、qwen-code（Qoder 内核确证迁自）、Peekaboo（Goose 全部桌面执行层）、Codex sky（MiMo 明示清洁室复刻）。</li>
     <li><strong>ZCode 的 CU SDK 逐字对齐 Codex @oai/cua（0.2.4）</strong>，但 stateId / frameId / possibly_sent / controller lease / kill switch 是事故驱动的自研加固。</li>
-    <li><strong>观察以 AX diff 为主</strong>：Goose 是 12 家中唯一在 CU 主路径使用「截图叠元素编号」的（基于 AX 树的 SoM 变体）；防句柄漂移有五级方案光谱。</li>
+    <li><strong>观察以 AX diff 为主</strong>：Goose 是首批 12 家中唯一在 CU 主路径使用「截图叠元素编号」的（基于 AX 树的 SoM 变体）；防句柄漂移有五级方案光谱。</li>
     <li><strong>后台定向输入（不抢焦点）四路线</strong>：AX 写值、窗口相对事件路由、SLS 签名事件封包（Kimi）、SkyLight/CGS 私有 API（Claude / MiMo / Grok）。</li>
     <li><strong>Browser Use 三架构</strong>：内嵌 WebView、真浏览器扩展、云端浏览器各有实例；成熟产品走向「多后端 + 能力广告」统一对象面。</li>
     <li><strong>MCP 是万能挂载面（八种形态）</strong>：共同点是「未启用 = 工具不存在」的 fail-closed 门控；防重放与「投递≠生效」验证回读是安全模型的最高共识。</li>
+    <li><strong>扩展 8 家补齐光谱两端</strong>：纯视觉唯一代表（Agent TARS：截图→VLM→坐标，零 AX）、纯 BU 库形态（Browser Use：被集成的事实标准库）、确定性代码+AI 逃生舱（Stagehand）、云端全控制委派极值（Fellou/Javis）、浏览器即载体的云脑本地手（Comet）、披着浏览器的 Claude Code 发行版（Dia）、同账号不同栈的 Operator 继承者（Atlas）与 2023 年活化石对照组（Self-Operating Computer）。</li>
   </ol>
 
   <h2>常见问题（FAQ）</h2>
-  <h3>这项研究覆盖了哪 12 个 Agent？</h3>
-  <p>ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）。分析基线为 2026-10-06 的 macOS arm64 本机安装版本，方法为只读静态逆向，未运行被分析对象、未抓包。</p>
+  <h3>这项研究覆盖了哪 20 个 Agent？</h3>
+  <p>首批 12 家：ZCode（智谱）、Codex（OpenAI）、Claude Code（Anthropic）、Cursor（Anysphere）、MiniMax Code、Synara（独立开发者）、Kimi Code（月之暗面）、Qoder（阿里巴巴）、Grok Bot（xAI）、Devin（Cognition）、Goose（Block）、MiMo（小米）；2026-10-07 扩展 8 家：Browser Use（开源 MIT）、Agent TARS（字节跳动）、Stagehand（Browserbase）、Self-Operating Computer（OthersideAI）、Comet（Perplexity）、Dia（The Browser Company）、ChatGPT Atlas（OpenAI）、Fellou（Fellou AI，已停更）。分析基线为 macOS arm64 本机安装版本，方法为只读静态逆向，未运行被分析对象、未抓包。</p>
   <h3>哪些 Agent 用了开源 Cua AI（trycua）底座？</h3>
   <p>MiniMax Code 内嵌 trycua cua-driver 0.22.1（17 个 CU 工具）；Synara 使用 cua-driver 0.28.2 patched（33 个 CU 工具）；Kimi Code 公开致谢了 Cua AI 的 SLS 签名键盘机制。其余多数为自研 Helper 或驱动。</p>
   <h3>为什么说 Grok Bot 和 Cursor 同源？</h3>
   <p>Grok Bot 桌面端由 Anysphere（Cursor 母公司）整体代工换牌：签名 TeamID「DCNK4UB866」与 Cursor 完全一致、sidecar 走 downloads.cursor.com CDN、asar 包名 sand、JS 残留 CUCursorService、模型名同为 sand-cua。</p>
-  <h3>12 家 Agent 的 Computer Use 有哪几种执行基线？</h3>
-  <p>四种：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。</p>
+  <h3>首批 12 家的 Computer Use 有哪几种执行基线？扩展 8 家补了哪些极值？</h3>
+  <p>四种：本地 Helper/驱动执行（9 家）、全云端执行本地投影（Devin）、执行层外包透传（Goose）、完全无原生能力（Grok CLI）。扩展 8 家补入新极值：纯视觉执行（Agent TARS）、纯库形态零 CU（Browser Use）、云端全控制委派（Fellou/Javis）、页内虚拟光标（Atlas）。</p>
   <h3>谁复制了谁？有哪些谱系关系实锤？</h3>
   <p>ZCode CU SDK 自述逐字对齐 Codex @oai/cua 0.2.4；Qoder node_repl 内核确证迁自 qwen-code（Apache-2.0）；MiMo 自述受 Codex sky 启发，是明示的清洁室复刻；Goose 执行层来自 Peekaboo（MIT）；Grok Bot 由 Cursor 母公司代工。</p>
   <h3>研究内容可以复用吗？包含什么？</h3>
-  <p>可以，MIT 许可开源。含 48 份分册文档（7400+ 行中文证据链）、12 维能力矩阵、20 个可复用设计模式与 12 套可运行参考实现；不含任何专有源码、二进制或凭据，不含 DRM 规避。</p>
+  <p>可以，MIT 许可开源。含 20 个 Agent 分册、80 份文档（10500+ 行中文证据链）、能力矩阵（首批 12 家横向对比）、20 个可复用设计模式与 17 套可运行参考实现；不含任何专有源码、二进制或凭据，不含 DRM 规避。</p>
 
   <h2>资源链接地图</h2>
   <ul>
     <li><a href="https://github.com/freeall12/computer-use">GitHub 主仓库</a>——项目总览、核心发现 TL;DR 与能力矩阵入口</li>
-    <li><a href="https://github.com/freeall12/computer-use/tree/main/agents">12 份逆向分册（agents/）</a>——每家 Agent 一册：观察机制、动作注入、安全模型</li>
-    <li><a href="https://github.com/freeall12/computer-use/blob/main/comparison/capability-matrix.md">12 维能力矩阵（comparison/capability-matrix.md）</a>——横向对比总表</li>
+    <li><a href="https://github.com/freeall12/computer-use/tree/main/agents">20 份逆向分册（agents/）</a>——每家 Agent 一册：观察机制、动作注入、安全模型</li>
+    <li><a href="https://github.com/freeall12/computer-use/blob/main/comparison/capability-matrix.md">能力矩阵（comparison/capability-matrix.md）</a>——首批 12 家横向对比总表</li>
     <li><a href="https://github.com/freeall12/computer-use/blob/main/reusable/patterns.md">20 个可复用设计模式（reusable/patterns.md）</a>——自己做 CU/BU Agent 的模式库</li>
     <li><a href="https://github.com/freeall12/computer-use/blob/main/docs/methodology.md">逆向方法论（docs/methodology.md）</a>——可复现的分析流程</li>
-    <li><a href="https://github.com/freeall12/computer-use/tree/main/source">12 套可运行参考实现（source/）</a>——逐 Agent 的最小可运行源码层</li>
+    <li><a href="https://github.com/freeall12/computer-use/tree/main/source">17 套可运行参考实现（source/）</a>——逐 Agent 的最小可运行源码层</li>
     <li><a href="https://github.com/freeall12/computer-use/blob/main/LICENSE">MIT License</a>——内容与代码许可</li>
     <li><a href="https://freeall12.github.io/computer-use/llms.txt">llms.txt</a>——面向 AI 生成引擎的站点内容地图</li>
   </ul>
@@ -425,411 +470,651 @@
 <footer class="bottombar">
   <p class="f-disclaimer">本站为独立研究演示页，与所列各厂商均无关联；页面中出现的各产品名称、标志与商标仅作识别用途，归其各自所有者。桌面、窗口与光标均为动画演示，非真实软件界面。</p>
   <div class="f-right">
-    <span class="f-powered"><a href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener">12 逆向分册</a> · <a href="https://github.com/freeall12/computer-use/tree/main/reusable" target="_blank" rel="noopener">20 设计模式</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source" target="_blank" rel="noopener">12 可运行参考实现</a></span>
+    <span class="f-powered"><a href="https://github.com/freeall12/computer-use/tree/main/agents" target="_blank" rel="noopener">20 逆向分册</a> · <a href="https://github.com/freeall12/computer-use/tree/main/reusable" target="_blank" rel="noopener">20 设计模式</a> · <a href="https://github.com/freeall12/computer-use/tree/main/source" target="_blank" rel="noopener">17 可运行参考实现</a></span>
     <a class="f-repo mono" href="https://github.com/freeall12/computer-use" target="_blank" rel="noopener">github.com/freeall12/computer-use</a>
   </div>
 </footer>
 
 <script type="application/json" id="agents-data">
-[
-  {
-    "slug": "zcode",
-    "name": "ZCode",
-    "vendor": "智谱",
-    "color": "#4C6FFF",
-    "monogram": "ZC",
-    "cu": "14 工具 · ax_native Helper（AX+CGEvent）",
-    "bu": "内嵌 WebView · 单一 js 工具动态面",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "14"
+  [
+    {
+      "slug": "zcode",
+      "name": "ZCode",
+      "vendor": "智谱",
+      "color": "#4C6FFF",
+      "monogram": "ZC",
+      "cu": "14 工具 · ax_native Helper（AX+CGEvent）",
+      "bu": "内嵌 WebView · 单一 js 工具动态面",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "14"
+        },
+        {
+          "label": "机制",
+          "value": "AX+CGEvent"
+        },
+        {
+          "label": "对齐",
+          "value": "逐字对齐 Codex"
+        },
+        {
+          "label": "防重放",
+          "value": "自研"
+        }
+      ],
+      "takeaway": "安全加固最重的自研派",
+      "toolcall": "get_app_state({name:\"Notes\"})",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/zcode"
       },
-      {
-        "label": "机制",
-        "value": "AX+CGEvent"
-      },
-      {
-        "label": "对齐",
-        "value": "逐字对齐 Codex"
-      },
-      {
-        "label": "防重放",
-        "value": "自研"
-      }
-    ],
-    "takeaway": "安全加固最重的自研派",
-    "toolcall": "get_app_state({name:\"Notes\"})",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/zcode/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/zcode"
+      "logo": "assets/logos/zcode.png"
     },
-    "logo": "assets/logos/zcode.png"
-  },
-  {
-    "slug": "codex",
-    "name": "Codex",
-    "vendor": "OpenAI",
-    "color": "#10A37F",
-    "monogram": "CX",
-    "cu": "@oai/cua + Swift Sky 服务 · js REPL 三工具",
-    "bu": "iab · 扩展 · 云 · mcpapps 四后端",
-    "chips": [
-      {
-        "label": "服务",
-        "value": "JSON-RPC"
+    {
+      "slug": "codex",
+      "name": "Codex",
+      "vendor": "OpenAI",
+      "color": "#10A37F",
+      "monogram": "CX",
+      "cu": "@oai/cua + Swift Sky 服务 · js REPL 三工具",
+      "bu": "iab · 扩展 · 云 · mcpapps 四后端",
+      "chips": [
+        {
+          "label": "服务",
+          "value": "JSON-RPC"
+        },
+        {
+          "label": "原子性",
+          "value": "Skyshot 原子"
+        },
+        {
+          "label": "守护",
+          "value": "锁屏守护"
+        },
+        {
+          "label": "后端",
+          "value": "4 种"
+        }
+      ],
+      "takeaway": "一个 REPL 全包的极简派",
+      "toolcall": "cua.getApp(\"Notes\")",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/codex"
       },
-      {
-        "label": "原子性",
-        "value": "Skyshot 原子"
-      },
-      {
-        "label": "守护",
-        "value": "锁屏守护"
-      },
-      {
-        "label": "后端",
-        "value": "4 种"
-      }
-    ],
-    "takeaway": "一个 REPL 全包的极简派",
-    "toolcall": "cua.getApp(\"Notes\")",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/codex/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/codex"
+      "logo": "assets/logos/codex.png"
     },
-    "logo": "assets/logos/codex.png"
-  },
-  {
-    "slug": "claude-code",
-    "name": "Claude Code",
-    "vendor": "Anthropic",
-    "color": "#D97757",
-    "monogram": "CC",
-    "cu": "~40 工具 · 三控制域 · Swift+Rust 双层",
-    "bu": "Chrome 扩展 + native messaging",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "~40"
+    {
+      "slug": "claude-code",
+      "name": "Claude Code",
+      "vendor": "Anthropic",
+      "color": "#D97757",
+      "monogram": "CC",
+      "cu": "~40 工具 · 三控制域 · Swift+Rust 双层",
+      "bu": "Chrome 扩展 + native messaging",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "~40"
+        },
+        {
+          "label": "权限",
+          "value": "tier 权限"
+        },
+        {
+          "label": "教学",
+          "value": "teach mode"
+        },
+        {
+          "label": "并发",
+          "value": "独占锁"
+        }
+      ],
+      "takeaway": "工具面拆得最细",
+      "toolcall": "mcp__computer-use__screenshot",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/claude-code"
       },
-      {
-        "label": "权限",
-        "value": "tier 权限"
-      },
-      {
-        "label": "教学",
-        "value": "teach mode"
-      },
-      {
-        "label": "并发",
-        "value": "独占锁"
-      }
-    ],
-    "takeaway": "工具面拆得最细",
-    "toolcall": "mcp__computer-use__screenshot",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/claude-code/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/claude-code"
+      "logo": "assets/logos/claude-code.png"
     },
-    "logo": "assets/logos/claude-code.png"
-  },
-  {
-    "slug": "cursor",
-    "name": "Cursor",
-    "vendor": "Anysphere",
-    "color": "#FFBD5A",
-    "monogram": "CU",
-    "cu": "MCP provider · 16 工具 · Swift sidecar",
-    "bu": "内嵌 webview 合成 DOM 事件",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "16"
+    {
+      "slug": "cursor",
+      "name": "Cursor",
+      "vendor": "Anysphere",
+      "color": "#FFBD5A",
+      "monogram": "CU",
+      "cu": "MCP provider · 16 工具 · Swift sidecar",
+      "bu": "内嵌 webview 合成 DOM 事件",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "16"
+        },
+        {
+          "label": "引用",
+          "value": "data-cursor-ref"
+        },
+        {
+          "label": "CDP",
+          "value": "拒绝列表"
+        },
+        {
+          "label": "门控",
+          "value": "门控未开"
+        }
+      ],
+      "takeaway": "白牌代工的源头（Grok Bot 即其变体）",
+      "toolcall": "browser_snapshot()",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/cursor"
       },
-      {
-        "label": "引用",
-        "value": "data-cursor-ref"
-      },
-      {
-        "label": "CDP",
-        "value": "拒绝列表"
-      },
-      {
-        "label": "门控",
-        "value": "门控未开"
-      }
-    ],
-    "takeaway": "白牌代工的源头（Grok Bot 即其变体）",
-    "toolcall": "browser_snapshot()",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/cursor/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/cursor"
+      "logo": "assets/logos/cursor.png"
     },
-    "logo": "assets/logos/cursor.png"
-  },
-  {
-    "slug": "minimax-code",
-    "name": "MiniMax Code",
-    "vendor": "MiniMax",
-    "color": "#FF6A00",
-    "monogram": "MM",
-    "cu": "trycua cua-driver 0.22.1 · 17 工具",
-    "bu": "WebContentsView + CDP · 24 action",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "17"
+    {
+      "slug": "minimax-code",
+      "name": "MiniMax Code",
+      "vendor": "MiniMax",
+      "color": "#FF6A00",
+      "monogram": "MM",
+      "cu": "trycua cua-driver 0.22.1 · 17 工具",
+      "bu": "WebContentsView + CDP · 24 action",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "17"
+        },
+        {
+          "label": "底座",
+          "value": "开源 cua-driver"
+        },
+        {
+          "label": "并发",
+          "value": "generation fencing"
+        },
+        {
+          "label": "JS",
+          "value": "无任意 JS"
+        }
+      ],
+      "takeaway": "开源驱动+协议兼容的务实派",
+      "toolcall": "computer_click(element_token)",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/minimax-code"
       },
-      {
-        "label": "底座",
-        "value": "开源 cua-driver"
-      },
-      {
-        "label": "并发",
-        "value": "generation fencing"
-      },
-      {
-        "label": "JS",
-        "value": "无任意 JS"
-      }
-    ],
-    "takeaway": "开源驱动+协议兼容的务实派",
-    "toolcall": "computer_click(element_token)",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/minimax-code/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/minimax-code"
+      "logo": "assets/logos/minimax-code.png"
     },
-    "logo": "assets/logos/minimax-code.png"
-  },
-  {
-    "slug": "synara",
-    "name": "Synara",
-    "vendor": "独立开发者",
-    "color": "#8B5CF6",
-    "monogram": "SY",
-    "cu": "cua-driver 0.28.2 patched · 33 工具",
-    "bu": "面板 CDP + cua CDP + cookie 导入",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "33"
+    {
+      "slug": "synara",
+      "name": "Synara",
+      "vendor": "独立开发者",
+      "color": "#8B5CF6",
+      "monogram": "SY",
+      "cu": "cua-driver 0.28.2 patched · 33 工具",
+      "bu": "面板 CDP + cua CDP + cookie 导入",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "33"
+        },
+        {
+          "label": "授权",
+          "value": "前台意图授权"
+        },
+        {
+          "label": "急停",
+          "value": "Escape 急停"
+        },
+        {
+          "label": "安全",
+          "value": "最重安全"
+        }
+      ],
+      "takeaway": "安全工程最“社会工程”",
+      "toolcall": "computer:control 授权",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/synara"
       },
-      {
-        "label": "授权",
-        "value": "前台意图授权"
-      },
-      {
-        "label": "急停",
-        "value": "Escape 急停"
-      },
-      {
-        "label": "安全",
-        "value": "最重安全"
-      }
-    ],
-    "takeaway": "安全工程最“社会工程”",
-    "toolcall": "computer:control 授权",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/synara/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/synara"
+      "logo": "assets/logos/synara.png"
     },
-    "logo": "assets/logos/synara.png"
-  },
-  {
-    "slug": "kimi-code",
-    "name": "Kimi Code",
-    "vendor": "月之暗面",
-    "color": "#21C4B5",
-    "monogram": "KC",
-    "cu": "KimiCU.app 常驻 · SkyLight+SLS 签名事件",
-    "bu": "webbridge 扩展 + 内嵌 43 操作",
-    "chips": [
-      {
-        "label": "操作面",
-        "value": "内嵌 43 操作"
+    {
+      "slug": "kimi-code",
+      "name": "Kimi Code",
+      "vendor": "月之暗面",
+      "color": "#21C4B5",
+      "monogram": "KC",
+      "cu": "KimiCU.app 常驻 · SkyLight+SLS 签名事件",
+      "bu": "webbridge 扩展 + 内嵌 43 操作",
+      "chips": [
+        {
+          "label": "操作面",
+          "value": "内嵌 43 操作"
+        },
+        {
+          "label": "焦点",
+          "value": "never-front 后台"
+        },
+        {
+          "label": "校验",
+          "value": "verify_after 三态"
+        }
+      ],
+      "takeaway": "后台不抢焦点的代表",
+      "toolcall": "verify_after → verified",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/kimi-code"
       },
-      {
-        "label": "焦点",
-        "value": "never-front 后台"
-      },
-      {
-        "label": "校验",
-        "value": "verify_after 三态"
-      }
-    ],
-    "takeaway": "后台不抢焦点的代表",
-    "toolcall": "verify_after → verified",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/kimi-code/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/kimi-code"
+      "logo": "assets/logos/kimi-code.png"
     },
-    "logo": "assets/logos/kimi-code.png"
-  },
-  {
-    "slug": "qoder",
-    "name": "Qoder",
-    "vendor": "阿里巴巴",
-    "color": "#6C5CE7",
-    "monogram": "QO",
-    "cu": "自研 Swift Runtime · UDS+token 注册表",
-    "bu": "16 工具钉死 chrome-devtools-mcp 基线",
-    "chips": [
-      {
-        "label": "内核",
-        "value": "qwen-code 内核"
+    {
+      "slug": "qoder",
+      "name": "Qoder",
+      "vendor": "阿里巴巴",
+      "color": "#6C5CE7",
+      "monogram": "QO",
+      "cu": "自研 Swift Runtime · UDS+token 注册表",
+      "bu": "16 工具钉死 chrome-devtools-mcp 基线",
+      "chips": [
+        {
+          "label": "内核",
+          "value": "qwen-code 内核"
+        },
+        {
+          "label": "BU 工具",
+          "value": "16"
+        },
+        {
+          "label": "审批",
+          "value": "per-app 审批"
+        },
+        {
+          "label": "录制",
+          "value": "Record&Replay"
+        }
+      ],
+      "takeaway": "内核确证迁自 qwen-code",
+      "toolcall": "open -g 懒拉起 + 握手",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/qoder"
       },
-      {
-        "label": "BU 工具",
-        "value": "16"
-      },
-      {
-        "label": "审批",
-        "value": "per-app 审批"
-      },
-      {
-        "label": "录制",
-        "value": "Record&Replay"
-      }
-    ],
-    "takeaway": "内核确证迁自 qwen-code",
-    "toolcall": "open -g 懒拉起 + 握手",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/qoder/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/qoder"
+      "logo": "assets/logos/qoder.png"
     },
-    "logo": "assets/logos/qoder.png"
-  },
-  {
-    "slug": "grok",
-    "name": "Grok Bot",
-    "vendor": "xAI",
-    "color": "#B0B6BD",
-    "monogram": "GB",
-    "cu": "16 工具 catalog 内嵌 · Swift Helper",
-    "bu": "云端 browser_subagent + cookie 审批导入",
-    "chips": [
-      {
-        "label": "CU 工具",
-        "value": "16"
+    {
+      "slug": "grok",
+      "name": "Grok Bot",
+      "vendor": "xAI",
+      "color": "#B0B6BD",
+      "monogram": "GB",
+      "cu": "16 工具 catalog 内嵌 · Swift Helper",
+      "bu": "云端 browser_subagent + cookie 审批导入",
+      "chips": [
+        {
+          "label": "CU 工具",
+          "value": "16"
+        },
+        {
+          "label": "代工",
+          "value": "Cursor 代工"
+        },
+        {
+          "label": "协议",
+          "value": "错误即指令"
+        }
+      ],
+      "takeaway": "白牌供应链实锤（TeamID 同 Cursor）",
+      "toolcall": "computer_use_click(ref)",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/grok"
       },
-      {
-        "label": "代工",
-        "value": "Cursor 代工"
-      },
-      {
-        "label": "协议",
-        "value": "错误即指令"
-      }
-    ],
-    "takeaway": "白牌供应链实锤（TeamID 同 Cursor）",
-    "toolcall": "computer_use_click(ref)",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/grok/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/grok"
+      "logo": "assets/logos/grok.png"
     },
-    "logo": "assets/logos/grok.png"
-  },
-  {
-    "slug": "devin",
-    "name": "Devin",
-    "vendor": "Cognition",
-    "color": "#E75480",
-    "monogram": "DV",
-    "cu": "云 VM computer · 1024×768 循环",
-    "bu": "云 Interactive Browser · CDP :29229",
-    "chips": [
-      {
-        "label": "执行",
-        "value": "全云端"
+    {
+      "slug": "devin",
+      "name": "Devin",
+      "vendor": "Cognition",
+      "color": "#E75480",
+      "monogram": "DV",
+      "cu": "云 VM computer · 1024×768 循环",
+      "bu": "云 Interactive Browser · CDP :29229",
+      "chips": [
+        {
+          "label": "执行",
+          "value": "全云端"
+        },
+        {
+          "label": "本地",
+          "value": "零 GUI"
+        },
+        {
+          "label": "分辨率",
+          "value": "1024×768"
+        },
+        {
+          "label": "接入",
+          "value": "ACP 投影"
+        }
+      ],
+      "takeaway": "云端执行的基线样本",
+      "toolcall": "cloud VM · browser_preview",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/devin"
       },
-      {
-        "label": "本地",
-        "value": "零 GUI"
-      },
-      {
-        "label": "分辨率",
-        "value": "1024×768"
-      },
-      {
-        "label": "接入",
-        "value": "ACP 投影"
-      }
-    ],
-    "takeaway": "云端执行的基线样本",
-    "toolcall": "cloud VM · browser_preview",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/devin/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/devin"
+      "logo": "assets/logos/devin.png"
     },
-    "logo": "assets/logos/devin.png"
-  },
-  {
-    "slug": "goose",
-    "name": "Goose",
-    "vendor": "Block",
-    "color": "#FFDE59",
-    "monogram": "GO",
-    "cu": "computer_control 纯透传 Peekaboo CLI",
-    "bu": "零内置 · 五个 MCP 外挂",
-    "chips": [
-      {
-        "label": "执行",
-        "value": "外包 Peekaboo"
+    {
+      "slug": "goose",
+      "name": "Goose",
+      "vendor": "Block",
+      "color": "#FFDE59",
+      "monogram": "GO",
+      "cu": "computer_control 纯透传 Peekaboo CLI",
+      "bu": "零内置 · 五个 MCP 外挂",
+      "chips": [
+        {
+          "label": "执行",
+          "value": "外包 Peekaboo"
+        },
+        {
+          "label": "BU 内置",
+          "value": "零"
+        },
+        {
+          "label": "协议",
+          "value": "Apache-2.0"
+        },
+        {
+          "label": "标注",
+          "value": "AX 叠加标注"
+        }
+      ],
+      "takeaway": "执行层完全外包的唯一样本",
+      "toolcall": "computer_control(\"see --annotate\")",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/goose"
       },
-      {
-        "label": "BU 内置",
-        "value": "零"
-      },
-      {
-        "label": "协议",
-        "value": "Apache-2.0"
-      },
-      {
-        "label": "标注",
-        "value": "AX 叠加标注"
-      }
-    ],
-    "takeaway": "执行层完全外包的唯一样本",
-    "toolcall": "computer_control(\"see --annotate\")",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/goose/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/goose"
+      "logo": "assets/logos/goose.png"
     },
-    "logo": "assets/logos/goose.png"
-  },
-  {
-    "slug": "mimo",
-    "name": "MiMo",
-    "vendor": "小米",
-    "color": "#FF4900",
-    "monogram": "MI",
-    "cu": "自研 sky-mac · js REPL 门面 · 锁屏操作",
-    "bu": "MV3 扩展 + chrome.debugger CDP",
-    "chips": [
-      {
-        "label": "复刻",
-        "value": "Codex 清洁室"
+    {
+      "slug": "mimo",
+      "name": "MiMo",
+      "vendor": "小米",
+      "color": "#FF4900",
+      "monogram": "MI",
+      "cu": "自研 sky-mac · js REPL 门面 · 锁屏操作",
+      "bu": "MV3 扩展 + chrome.debugger CDP",
+      "chips": [
+        {
+          "label": "复刻",
+          "value": "Codex 清洁室"
+        },
+        {
+          "label": "锁屏",
+          "value": "支持操作"
+        },
+        {
+          "label": "安全",
+          "value": "SecurityAgentPlugins"
+        }
+      ],
+      "takeaway": "对标 Codex 最明示的复刻",
+      "toolcall": "js: @mimo/sky.click()",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/mimo"
       },
-      {
-        "label": "锁屏",
-        "value": "支持操作"
-      },
-      {
-        "label": "安全",
-        "value": "SecurityAgentPlugins"
-      }
-    ],
-    "takeaway": "对标 Codex 最明示的复刻",
-    "toolcall": "js: @mimo/sky.click()",
-    "links": {
-      "readme": "https://github.com/freeall12/computer-use/blob/main/agents/mimo/README.md",
-      "source": "https://github.com/freeall12/computer-use/tree/main/source/mimo"
+      "logo": "assets/logos/mimo.png"
     },
-    "logo": "assets/logos/mimo.png"
-  }
-]
-</script>
+    {
+      "slug": "browser-use",
+      "name": "Browser Use",
+      "vendor": "开源（MIT）",
+      "color": "#FF5C8A",
+      "monogram": "BU",
+      "cu": "无（纯 BU 极端样本）",
+      "bu": "24 动作 · DOM+截图双观察 · CDP 直连",
+      "chips": [
+        {
+          "label": "句柄",
+          "value": "[index]"
+        },
+        {
+          "label": "凭据",
+          "value": "secret 替换"
+        },
+        {
+          "label": "安全",
+          "value": "导航围栏"
+        }
+      ],
+      "takeaway": "被集成的事实标准库",
+      "toolcall": "uvx browser-use --mcp",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/browser-use/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/browser-use"
+      },
+      "logo": "assets/logos/browser-use.png"
+    },
+    {
+      "slug": "ui-tars",
+      "name": "Agent TARS",
+      "vendor": "字节跳动（开源）",
+      "color": "#2E90FA",
+      "monogram": "TA",
+      "cu": "纯视觉 截图→VLM→坐标",
+      "bu": "dom·visual·hybrid 三模式",
+      "chips": [
+        {
+          "label": "合成",
+          "value": "nut-js"
+        },
+        {
+          "label": "AX",
+          "value": "零"
+        },
+        {
+          "label": "解析层",
+          "value": "50 别名"
+        }
+      ],
+      "takeaway": "纯视觉路线唯一代表",
+      "toolcall": "Thought → click(x,y)",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/ui-tars/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/ui-tars"
+      },
+      "logo": "assets/logos/ui-tars.png"
+    },
+    {
+      "slug": "stagehand",
+      "name": "Stagehand",
+      "vendor": "Browserbase（开源）",
+      "color": "#B44CF0",
+      "monogram": "SH",
+      "cu": "无",
+      "bu": "act·observe·extract 三原语 + 77 确定性 RPC",
+      "chips": [
+        {
+          "label": "定位",
+          "value": "半自动生产派"
+        },
+        {
+          "label": "运行时",
+          "value": "MV3"
+        },
+        {
+          "label": "执行",
+          "value": "缓存重放"
+        }
+      ],
+      "takeaway": "确定性代码+AI 逃生舱",
+      "toolcall": "await stagehand.act(\"点击登录\")",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/stagehand/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/stagehand"
+      },
+      "logo": "assets/logos/stagehand.png"
+    },
+    {
+      "slug": "self-operating-computer",
+      "name": "Self-Operating Computer",
+      "vendor": "OthersideAI（开源）",
+      "color": "#4E6E81",
+      "monogram": "SC",
+      "cu": "截图→pyautogui 全局合成",
+      "bu": "无（光谱零点）",
+      "chips": [
+        {
+          "label": "风格",
+          "value": "极简派"
+        },
+        {
+          "label": "安全",
+          "value": "零基线"
+        },
+        {
+          "label": "观察",
+          "value": "YOLO SoM"
+        }
+      ],
+      "takeaway": "2023 年的活化石对照组",
+      "toolcall": "CLICK {[0.5, 0.3]}",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/self-operating-computer/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/self-operating-computer"
+      },
+      "logo": "assets/logos/self-operating-computer.png"
+    },
+    {
+      "slug": "comet",
+      "name": "Comet",
+      "vendor": "Perplexity",
+      "color": "#20808D",
+      "monogram": "CM",
+      "cu": "无 OS 级（标签页边界）",
+      "bu": "内嵌 CRX + 23 私有 API · 云端决策本机执行",
+      "chips": [
+        {
+          "label": "形态",
+          "value": "浏览器即载体"
+        },
+        {
+          "label": "安全",
+          "value": "视口守卫"
+        },
+        {
+          "label": "输入",
+          "value": "人类封锁"
+        }
+      ],
+      "takeaway": "云脑+本地手的混合体",
+      "toolcall": "ComputerBatch(10 动作)",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/comet/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source/comet"
+      },
+      "logo": "assets/logos/comet.png"
+    },
+    {
+      "slug": "dia",
+      "name": "Dia",
+      "vendor": "The Browser Company",
+      "color": "#C86DD7",
+      "monogram": "DI",
+      "cu": "0（SDK 预埋未接）",
+      "bu": "内嵌 Claude Code SDK · 沙箱 JS REPL",
+      "chips": [
+        {
+          "label": "CLI",
+          "value": "claude 2.1.280"
+        },
+        {
+          "label": "规格",
+          "value": "45 agent"
+        },
+        {
+          "label": "授权",
+          "value": "委派门"
+        }
+      ],
+      "takeaway": "披着浏览器的 Claude Code 发行版",
+      "toolcall": "browser_use(js: playwright…)",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/dia/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source"
+      },
+      "logo": "assets/logos/dia.png"
+    },
+    {
+      "slug": "atlas",
+      "name": "ChatGPT Atlas",
+      "vendor": "OpenAI",
+      "color": "#74AA9C",
+      "monogram": "AT",
+      "cu": "页内虚拟光标（无 OS 级）",
+      "bu": "Operator 血统 computer.* · ARIA ref 快照",
+      "chips": [
+        {
+          "label": "栈",
+          "value": "不走 Sky"
+        },
+        {
+          "label": "代号",
+          "value": "Dragonfruit"
+        },
+        {
+          "label": "记忆",
+          "value": "memories"
+        }
+      ],
+      "takeaway": "同账号不同栈的 Operator 继承者",
+      "toolcall": "computer.click [ref=]",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/atlas/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source"
+      },
+      "logo": "assets/logos/atlas.png"
+    },
+    {
+      "slug": "fellou",
+      "name": "Fellou",
+      "vendor": "Fellou AI（停更）",
+      "color": "#5C6BC0",
+      "monogram": "FE",
+      "cu": "云端 Javis 全控制委派",
+      "bu": "Eko 框架 13 工具 · SoM 观察",
+      "chips": [
+        {
+          "label": "影子",
+          "value": "Shadow Browser"
+        },
+        {
+          "label": "状态",
+          "value": "产品已停更"
+        },
+        {
+          "label": "框架",
+          "value": "MIT"
+        }
+      ],
+      "takeaway": "云端全控制的极端样本",
+      "toolcall": "deepAction → Javis",
+      "links": {
+        "readme": "https://github.com/freeall12/computer-use/blob/main/agents/fellou/README.md",
+        "source": "https://github.com/freeall12/computer-use/tree/main/source"
+      },
+      "logo": "assets/logos/fellou.png"
+    }
+  ]
+  </script>
 <script src="assets/app.js"></script>
 </body>
 </html>

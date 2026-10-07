@@ -1,456 +1,536 @@
 # 可复用设计模式：自己做一个 CU/BU Agent 需要的一切
 
-> 本文从 12 家实现中提炼「自己做一个 Computer Use / Browser Use Agent」所需的设计模式。
-> 每条含：模式名、解决什么问题、谁在用（附各 agent 文档相对路径）、实现要点、取舍。
-> 链接均指向本仓库 [agents/](../agents/) 内的分册；证据细节见各分册 [evidence/inventory.md](../agents/)。
+> 从 20 家实现提炼 24 条模式。每条四件套：**解决什么 → 谁在用（表）→ 要点 → 取舍**。
+> 链接指向本仓库 [agents/](../agents/) 分册；证据细节见各分册 evidence/inventory.md。
 
-**目录**
+**模式索引**
 
-1. [独立 Helper 进程模式（持 TCC 权限、权限中介）](#p1)
-2. [无障碍优先 + 视觉兜底双路径；观察-动作-再观察循环](#p2)
-3. [元素句柄/ref 机制与防漂移校验](#p3)
-4. [后台定向输入（不抢焦点）](#p4)
-5. [剪贴板 paste 与 setValue 分层](#p5)
-6. [控制租约与互斥（lease / generation fencing）](#p6)
-7. [防重放（possibly_sent）与 kill switch](#p7)
-8. [浏览器三架构选型](#p8)
-9. [MCP 作为模型面通用挂载](#p9)
-10. [审批分级与域白名单](#p10)
-11. [Fail-closed 工具注入（能力门控）](#p11)
-12. [批量动作与统一坐标基准](#p12)
-13. [可视化示能与「人机共驾」](#p13)
-14. [注册表文件型传输（ipc/*.json + token + 懒拉起）](#p14)
-15. [钉死第三方工具基线（pinned baseline）](#p15)
-16. [录制 → Skill 演示学习闭环](#p16)
-17. [错误即指令协议（结构化拒绝 + 升级建议）](#p17)
-18. [执行层外包与 CLI 透传](#p18)
-19. [云端执行、本地投影](#p19)
-20. [代工换牌与白牌供应链识别](#p20)
+| # | 模式 | 一句话 | 代表 |
+|---|---|---|---|
+| [P1](#p1) | 独立 Helper 进程 | 权限挂 Helper 不挂宿主 | ZCode / Codex / Kimi |
+| [P2](#p2) | 语义优先+视觉兜底双路径 | 观察-动作-再观察循环 | ZCode / Codex |
+| [P3](#p3) | 元素句柄与防漂移 | 校验由知道真相的一侧做 | ZCode / Kimi / Comet |
+| [P4](#p4) | 后台定向输入 | 不抢焦点是分界线 | Kimi / ZCode |
+| [P5](#p5) | 剪贴板 paste 与 setValue 分层 | 三层文本输入显式暴露 | ZCode / Qoder |
+| [P6](#p6) | 控制租约与互斥 | 同一时刻只有一个控制器 | ZCode / MiniMax |
+| [P7](#p7) | 防重放与 kill switch | 「可能已下发」不是「失败」 | ZCode / Kimi |
+| [P8](#p8) | 浏览器架构选型 | 内嵌/扩展/云端/外挂/载体五选 | Codex / Comet |
+| [P9](#p9) | MCP 通用挂载 | 跨宿主复用工具面 | Kimi / Grok / Agent TARS |
+| [P10](#p10) | 审批分级与域白名单 | 默认拒绝，策略弹权限硬 | Claude / Codex / Dia |
+| [P11](#p11) | Fail-closed 工具注入 | 未启用=工具不存在 | MiniMax / Cursor |
+| [P12](#p12) | 批量动作与坐标基准 | 批前截图锚定坐标系 | Claude / Comet |
+| [P13](#p13) | 可视化示能与人机共驾 | 让人看见、能夺回 | ZCode / Comet / Atlas |
+| [P14](#p14) | 注册表文件型传输 | 低耦合服务发现+懒拉起 | Qoder / Grok |
+| [P15](#p15) | 钉死第三方基线 | 兼容=启动时可校验断言 | Qoder / Stagehand |
+| [P16](#p16) | 录制→Skill 演示学习 | 泛化外包给人 | Qoder（唯一闭环） |
+| [P17](#p17) | 错误即指令协议 | 失败是协议不是异常 | Grok / Comet |
+| [P18](#p18) | 执行层外包与 CLI 透传 | 1 个工具吃下命令空间 | Goose（唯一） |
+| [P19](#p19) | 云端执行、本地投影 | 本机零权限的代价 | Devin / Fellou |
+| [P20](#p20) | 代工换牌与供应链识别 | TeamID 不会骗人 | Grok Bot ← Anysphere |
+| [P21](#p21) | **被集成库形态**（新） | 库被产品包进去的反面 | browser-use / stagehand / eko |
+| [P22](#p22) | **确定性+AI 逃生舱**（新） | 缓存放选择器序列不放答案 | stagehand |
+| [P23](#p23) | **云端全控制委派**（新） | "full computer control"的极端形态与风险 | fellou / devin |
+| [P24](#p24) | **prompt 内嵌动作语法**（新） | 无 schema 时代的活化石 | SOC / Agent TARS |
 
 ---
 
 <a id="p1"></a>
 ## P1. 独立 Helper 进程模式（持 TCC 权限、权限中介、与宿主解耦）
 
-**解决什么问题**：桌面控制需要 Accessibility / Screen Recording 等系统权限，但 (a) 宿主（Electron/CLI）往往不适合或不能持权；(b) 权限挂在宿主上意味着每次更新/重签名都可能丢授权；(c) 原生 API 调用希望与业务进程隔离崩溃域。
+**解决什么问题**：桌面控制需要系统权限，但宿主不适合持权、更新重签名会丢授权、原生调用需隔离崩溃域。
 
-**谁在用**（5/7 有独立 Helper；两家用进程内变体）：
-- [ZCode](../agents/zcode/computer-use.md)：`ZCode Computer Use.app`（Node SEA 111MB + `ax_native.node`），宿主验签安装（TeamID 硬钉、staging → 原子 promote、安装锁）、懒启动、LSUIElement；权限中介 `/tmp/zcode-cua-<uid>/broker.sock`（IPC v2，对端代码签名校验）。
-- [Codex](../agents/codex/computer-use.md)：Swift 服务 `com.openai.sky.CUAService`，UDS `~/Library/Group Containers/…/computeruse.sock`；客户端三级自愈拉起（host services 管道 → LaunchServices → 重连）。
-- [Claude](../agents/claude-code/computer-use.md)：Rust `app-cu-helper`（stdio JSON-RPC，默认 8s 超时，崩溃重启退避 `[0,1s,5s]` 后 60s 冷却）；mac 执行层为 `ComputerUseSwift`。
-- [Cursor](../agents/cursor/computer-use.md)：Swift `computer-use-sidecar.app`，CDN 签名 manifest 分发，`service.json` 会合文件 + Unix socket 行分隔 JSON-RPC；Windows Rust sidecar（命名管道 + 0600 launch token 握手）。
-- [Kimi](../agents/kimi-code/computer-use.md)：`KimiCU.app`（Swift），launchd Mach service 按需常驻——"CLI may lack accessibility permission; the launchd Service holds it for MCP"，**权限明确归属服务而非 CLI**。
-- 变体：[MiniMax](../agents/minimax-code/computer-use.md) 用 Electron **utility process**（`mavis-cua`，macOS `--message-loop-type-ui`）承载 Rust 驱动，MessagePort + generation 隔离；[Synara](../agents/synara/computer-use.md) 由宿主 spawn `cua-driver --embedded`（随机 UUID socket + 孤儿进程清理）。
+| 形态 | 家 | 要点 |
+|---|---|---|
+| 独立 .app（签名分发+懒启动） | [ZCode](../agents/zcode/computer-use.md) / [Codex](../agents/codex/computer-use.md) / [Cursor](../agents/cursor/computer-use.md) / [Kimi](../agents/kimi-code/computer-use.md) / [Qoder](../agents/qoder/computer-use.md) / [Grok](../agents/grok/computer-use.md) / [MiMo](../agents/mimo/computer-use.md) | 独立签名独占 TCC；IPC 带 token/签名校验（ZCode 钉 TeamID、Grok 升级为团队白名单） |
+| 进程内变体 | [MiniMax](../agents/minimax-code/computer-use.md)（Electron utility process）/ [Synara](../agents/synara/computer-use.md)（宿主 spawn `--embedded`） | 免安装链；权限挂宿主，重签名即重授权 |
+| Rust 子进程 | [Claude](../agents/claude-code/computer-use.md)（stdio JSON-RPC，退避重启） | 执行层 ComputerUseSwift 静态链接 |
+| **反例：新 8 家全无 Helper** | browser-use/stagehand（库）· ui-tars（宿主 App 持权）· SOC（终端持权）· comet/dia/atlas（浏览器自持，无 OS 权限面）· fellou（无本地执行） | 库/浏览器载体形态**结构性不需要**权限中介——这是范式分化最深的一条缝 |
 
-**实现要点**：
-1. Helper 独立签名、独立 bundle id、独占 TCC 授权；宿主安装时校验签名（ZCode 钉 TeamID `8A5X4JJ39T`、Cursor 钉 `DCNK4UB866` + `pinnedSignerSubjects`）。
-2. 本地 IPC 一律带鉴权：一次性 token（ZCode/Kimi `runtime.token`）、对端 uid 校验（socket 不可 world-writable）、对端代码签名摘要（ZCode `PeerCodeSigningSummary`）。
-3. 冷启动契约：Helper 未就绪返回**可重试**错误（ZCode `CUA_NOT_READY` 退避表 `[250,500,750,1000,1500]ms`；Codex "Do not end your turn yet, just call this tool again"）。
-4. 生命周期卫生：随机 socket 路径 + 陈旧清理（ZCode 24h、Synara 孤儿扫描 kill）。
+**要点**：安装验签（钉 TeamID）；IPC 鉴权四件套（token/属主/非 symlink/对端签名）；冷启动返回可重试错误（ZCode 退避表、Codex "call this tool again"）；生命周期卫生（随机 socket+陈旧清理）。
 
-**取舍**：独立 Helper 换来权限稳定与崩溃隔离，代价是分发/安装/升级链路复杂（Cursor 为此造了整套签名分发体系；Kimi 提醒「升级不会自动替换长寿 MCP 桥」）。MiniMax 的 utility process 变体省掉安装链，但权限只能挂宿主 app，更新重签名即重授权。
+**取舍**：独立 Helper 换权限稳定与崩溃隔离，代价是分发安装链复杂；进程内变体省链路但权限挂宿主。库/浏览器形态干脆不进这场游戏。
 
 ---
 
 <a id="p2"></a>
 ## P2. 无障碍优先 + 视觉兜底双路径；观察-动作-再观察循环
 
-**解决什么问题**：纯视觉（截图+坐标）对文本定位不精确且吃 token；纯 AX 对 canvas/自绘控件无效。所有成熟实现都是「语义优先、像素兜底」，并把「观察→动作→再观察」固化为循环纪律。
+**解决什么问题**：纯视觉对文本定位不精且吃 token；纯 AX 对 canvas/自绘控件无效。成熟实现「语义优先、像素兜底」+ 循环纪律。
 
-**谁在用**：本地执行系 10 家全部实现；Devin（云 VM 内实现未公开）与 Goose（委托 Peekaboo）不自建。
-- [ZCode](../agents/zcode/computer-use.md)（§4–5）：`strategy:"auto"` 默认 AX；`strategy:"event"` 兜底且**要求已在前台**（永不主动激活）；隐藏窗口 AX 树可用而栅格 fail-closed，错误信息引导改走元素路径。
-- [Codex](../agents/codex/computer-use.md)（§4–5）：AX diff 为主、Skyshot（AX+截图+分类器）为观察原子；指令硬约束「每动作后必须 getAXState 再决策」。
-- [Claude](../agents/claude-code/computer-use.md)（§4）：display-scope 纯截图系（含 `zoom` 从上次截图裁剪），app-scoped 附 AX 摘要 `[N]` 索引 + `app_ax_find`。
-- [Cursor](../agents/cursor/computer-use.md)（§4）：截图（固定 canvas WEBP）+ AX 树文本；BU 侧同构（snapshot 结构 + screenshot 视觉，提示词明示「不能基于截图定位动作」）。
-- [MiniMax](../agents/minimax-code/computer-use.md)（§5）：element_token 或 x/y **互斥**（混用直接报错）；`computer_verify_state` 结构化后置条件。
-- [Kimi](../agents/kimi-code/computer-use.md)（§3–4）：AX index + 截图像素双轨 + `rect` 局部裁剪。
-- [Qoder](../agents/qoder/computer-use.md)（§4–5）：AX 树文本（elementIndex + diff）+ 截图（新鲜度仲裁："Screenshot reused from an earlier capture; the accessibility state is newer"）；动作自动回传 post-action 状态。
-- [Grok](../agents/grok/computer-use.md)（§4）：SCK 单窗捕获（1MiB JPEG 预算、1280×800 固定画布、padding-bar 坐标识别拒绝）+ AX 树文本（element_id 钻取展开）。
-- [Goose](../agents/goose/computer-use.md)（§4）：观察全在 Peekaboo 侧——`see --annotate` 产出 **AX 元素 ID 标注截图（SoM 变体：编号来自 AX 树而非视觉模型）** + JSON stdout；goose 自身无观察代码。
-- [Synara](../agents/synara/computer-use.md)（§4）：SCK 截图 + 完整 AX 树 + `zoom` + `verify_state`。
+| 路线 | 家 | 观察 | 动作 |
+|---|---|---|---|
+| AX 树 diff + 截图辅助 | [ZCode](../agents/zcode/computer-use.md) / [Codex](../agents/codex/computer-use.md) / [Kimi](../agents/kimi-code/computer-use.md) / [Qoder](../agents/qoder/computer-use.md) / [MiniMax](../agents/minimax-code/computer-use.md) / [Synara](../agents/synara/computer-use.md) / [MiMo](../agents/mimo/computer-use.md) / [Grok](../agents/grok/computer-use.md) | 增量 diff（行数预算/台账） | AX 句柄主 + CGEvent 兜底 |
+| 页面内文本快照（AX 派的浏览器变体） | [Dia](../agents/dia/browser-use.md)（a11y 快照 diff）/ [Atlas](../agents/atlas/computer-use.md)（ARIA 快照 `ref=`）/ [Comet](../agents/comet/browser-use.md)（AX 伪 HTML）/ [Stagehand](../agents/stagehand/browser-use.md)（CDP AX 文本树） | 结构化文本 + 句柄 | Playwright/CDP 语义动作 |
+| 纯视觉（AX 零参与） | [UI-TARS](../agents/ui-tars/computer-use.md) / [SOC](../agents/self-operating-computer/computer-use.md) | 整屏截图（SOC 另有 OCR/YOLO 档） | 模型坐标 → nut-js / pyautogui |
+| SoM 三态 | 见 [capability-matrix §3.2](../comparison/capability-matrix.md#32-som-三态20-家后的第三次结论改写) | SOC 真用例 / browser-use 渲染器零调用 / Goose AX 叠注变体 | — |
 
-**实现要点**：
-1. 观察要「便宜」：AX 树增量 diff（只回变化）、行数预算（Codex `AccessibilityDifferenceLineBudgetExceeded`）、大树优先级裁剪（ZCode 祖先保留 + `elements()` 逃逸口）。
-2. 动作后**稳定等待**再观察：ZCode ActionSettler（300ms 起步、树指纹连续两次一致或 5s 上限）、Codex 内置自动等待并禁止模型手动 setTimeout、Cursor 动作后自动回新截图。
-3. 坐标纪律写进工具描述：坐标是「最近一次截图/栅格的全分辨率坐标系」，scale 只缩返回图省 token（Claude/MiniMax/ZCode 三家逐字级一致）。
+**要点**：观察要便宜（diff、行数预算、裁剪）；动作后稳定等待再观察（ZCode ActionSettler、Codex 禁手动 setTimeout）；坐标纪律写进工具描述。
 
-**取舍**：AX 路径精确但脆弱（Electron 应用常需 `AXManualAccessibility` 手工开启，Codex/Kimi 符号表均见）；截图路径通用但贵。双路径 + 明确的路由提示（Kimi 输出 `is_electron/has_cef` 供路由判断）是当前最优解。
+**取舍**：AX 精确但脆弱（Electron 需 `AXManualAccessibility`）；截图通用但贵。UI-TARS/SOC 证明纯视觉是可活路线——代价是放弃精确与防漂移，换来跨应用泛化。
 
 ---
 
 <a id="p3"></a>
 ## P3. 元素句柄/ref 机制与防漂移校验
 
-**解决什么问题**：模型拿着「第 42 号元素」去点击时，页面可能已经变了。句柄失效是 CU/BU 第一大错误源。
+**解决什么问题**：模型拿「42 号元素」去点击时页面可能已变——句柄失效是 CU/BU 第一大错误源。
 
-**谁在用**（五个递强度的方案，可组合）：
-1. **diff 基线 + 流程纪律**：[Codex](../agents/codex/computer-use.md)（§3.5、§4.1）——动作后错误信息**内嵌新鲜 AX diff**；不做运行时校验。
-2. **diff 基线 + 模型可见性台账**：[ZCode](../agents/zcode/computer-use.md)（§4.1–4.2）——Helper 管「数据有没有变」，宿主管「模型有没有见过」（`tree_shown_to_model` 台账 + `recordModelVisibleTree` 索引位移校验）；只截图的观察不算基线。
-3. **snapshot_id 绑定**：[Cursor CU](../agents/cursor/computer-use.md)（element_id + snapshot_id，树未变可复用连续填表）、[Kimi](../agents/kimi-code/computer-use.md)（"stale or other-context IDs are rejected"）、[MiniMax BU](../agents/minimax-code/browser-use.md)（snapshotId + nextOffset 续页）、[Grok](../agents/grok/computer-use.md)（snapshot_id + coordinate_token **双句柄分账**——AX 通路与截图通路各自绑定新鲜度；staleness 归因到五种具体原因）、[Goose](../agents/goose/computer-use.md)（`--snapshot <id>` 复用 `see` 结果——但生命周期在 Peekaboo 侧，goose 不管理；其元素 ID 经 **AX 树标注叠加在截图上**，是 set-of-marks 变体，见 capability-matrix §3.1）。
-4. **描述校验 assertDescriptionMatches**：[Cursor BU](../agents/cursor/browser-use.md)（§4.1）——动作带人类可读描述，执行前比对 tag/role/text，漂移即要求重新 snapshot；同族：ZCode/Kimi `select_text` 的 prefix/suffix 消歧。
-5. **verify_after 三态 / 效果证据**：[Kimi](../agents/kimi-code/computer-use.md)（verified / 未验证 / verification_required；"A delivered click with an unobserved effect is never automatically repeated"）、[MiniMax](../agents/minimax-code/browser-use.md)（effect.verified + VERIFIED_FILL 4 次采样 + `verificationRequired`）、[ZCode](../agents/zcode/computer-use.md)（`[effect_evidence unchanged]` 寄存——修复了模型对「点了没反应」零感知、连点三次的事故）、[Synara](../agents/synara/computer-use.md)（点击前截图 marker + evidence.json 取证、ref frame identity 重验）、[Qoder](../agents/qoder/computer-use.md)（动作自动回传 post-action 状态 + 坐标守卫「截图未过期且窗口几何未变，否则 Re-query get_app_state」）。
+| 方案（强度递增） | 机制 | 代表 |
+|---|---|---|
+| 1. 流程纪律 | 错误内嵌新鲜 diff，无运行时校验 | [Codex](../agents/codex/computer-use.md)；[Fellou/eko](../agents/fellou/browser-use.md)（「只用最新索引」）、[UI-TARS](../agents/ui-tars/computer-use.md)/[SOC](../agents/self-operating-computer/computer-use.md)（每轮重截图） |
+| 2. 双基线台账 | 数据变没变 / 模型见没见过 分离 | [ZCode](../agents/zcode/computer-use.md)（`tree_shown_to_model`） |
+| 3. snapshot_id 绑定 | 动作必带 id，stale 拒绝 | [Cursor](../agents/cursor/computer-use.md)、[Kimi](../agents/kimi-code/computer-use.md)、[MiniMax BU](../agents/minimax-code/browser-use.md)、[Grok](../agents/grok/computer-use.md)（双句柄分账）、[Dia](../agents/dia/browser-use.md)（ref 绑快照、文档替换即过期）、[Atlas](../agents/atlas/computer-use.md)（`ref=` 快照） |
+| 4. 描述校验 | assertDescriptionMatches 比对漂移 | [Cursor BU](../agents/cursor/browser-use.md)；ZCode/Kimi prefix-suffix 消歧 |
+| 5. verify 三态/效果证据 | verified/未验证/verification_required | [Kimi](../agents/kimi-code/computer-use.md)、[MiniMax](../agents/minimax-code/browser-use.md)、[ZCode](../agents/zcode/computer-use.md)、[Synara](../agents/synara/computer-use.md)、[Qoder](../agents/qoder/computer-use.md)、[Grok](../agents/grok/computer-use.md)；Goose 最轻档（自动补拍） |
+| 6. **宁空勿错**（新） | 状态超时→清空句柄台账，报「索引均不可用」 | [browser-use](../agents/browser-use/browser-use.md)（`selector_map` 清空） |
+| 7. **视口版本守卫**（新） | 截图-坐标版本不一致→拒绝整批+回新截图 | [Comet](../agents/comet/browser-use.md)（客户端强制一致性） |
+| 8. **确定性解析+缓存键**（新） | elementId 由快照 map 确定性解析；缓存按「指令+DOM 键」重放 | [Stagehand](../agents/stagehand/browser-use.md) |
 
-**实现要点**：
-- ref 作用域必须显式：绑定「最近一次快照」（Cursor BU 明文）或「观察上下文」（Kimi `observation_context` 随机 UUID，跨上下文复用直接拒绝）。
-- 旧 ref 主动回收：Cursor 注入脚本「本次未引用到的旧 ref 会被清除」。
-- 裁剪可救回：ZCode 被裁剪索引可从 `elements()` 逃逸口拿回；但容器部分上报（`showing A-B of N`）救不回，只能滚动后再观察——要把这两种截断区分开。
+**要点**：ref 作用域显式（绑快照/观察上下文）；旧 ref 主动回收；「容器部分上报」与「裁剪可救回」要区分（ZCode `elements()` 逃逸口）。
 
-**取舍**：运行时强校验（方案 3–5）显著降低错误率，但每次动作多带参数、多一次往返；「纪律派」（方案 1）最省但把错误成本转嫁给模型。ZCode 的经验是：**校验应该由知道真相的一侧做**（Helper 知道元素是否还在，客户端的 stateId 守卫反而删除了）。
+**取舍**：强校验降错误率但多往返；纪律派把成本转嫁给模型。20 家后结论更强：**校验应该由知道真相的一侧做**——browser-use 在执行层清台账、Comet 在扩展层卡版本、Stagehand 在快照 map 里定 xpath。
 
 ---
 
 <a id="p4"></a>
 ## P4. 后台定向输入（不抢焦点）
 
-**解决什么问题**：让 agent 在后台操作某个窗口，不打断用户正在做的事——这是「agent 用电脑」与「agent 抢电脑」的分界线。
+**解决什么问题**：让 agent 后台操作窗口不打断用户——「agent 用电脑」与「agent 抢电脑」的分界线。
 
-**谁在用**（四条技术路线，按侵入性递增）：
-1. **AX settable / 语义写值**：[ZCode `set_value`](../agents/zcode/computer-use.md)、[Cursor `computer_set_value`](../agents/cursor/computer-use.md)、[MiniMax `set_value`](../agents/minimax-code/computer-use.md)、[Kimi no-raise 后台替换](../agents/kimi-code/computer-use.md)（§3.2）——不敲键盘、可后台、无自动纠错干扰。
-2. **窗口相对事件路由**：[ZCode](../agents/zcode/computer-use.md)（§5.1）坐标点击归一为「pid + bundle_id + window_id + 窗口 bounds + 窗口内相对坐标」派发（日志实证），永不发全局屏幕点击；[Kimi](../agents/kimi-code/computer-use.md)（§5.1）`channel:auto|skylight|public` 双通道（SkyLight WindowServer 补全窗口号 vs NSEvent 工厂事件 postToPid，无跨通道自动重试）；[Qoder](../agents/qoder/computer-use.md)（§6）`CGEventPostToPid` 定向注入 + `BackgroundTextInputSession`（符号级证据，未达 SLS 认证封包强度）。
-3. **签名事件认证封包（SLS 私有 API）**：[Kimi SignedKeyboard](../agents/kimi-code/computer-use.md)（§5.2）——`SLSEventAuthenticationMessage` + `SLEventPostToPid` 定向投给目标 pid，**窗口完全被遮挡也能落键**（公开致谢 Cua AI，独立实现）；回退 `CGEventPostToPid`。
-4. **私有框架窗口/空间操作**：[Claude app-cu-helper](../agents/claude-code/computer-use.md)（§5）——SkyLight/CGS 私有 API（`SLSGetActiveSpace`/`SLPSPostEventRecordTo`/`CGSCopySpacesForWindows`），异 Space 窗口拉回、后台菜单遍历点击；[Synara](../agents/synara/computer-use.md) activation shield / Space 指定。
+| 路线（侵入性递增） | 代表 |
+|---|---|
+| 1. AX settable 语义写值 | [ZCode](../agents/zcode/computer-use.md)、[Cursor](../agents/cursor/computer-use.md)、[MiniMax](../agents/minimax-code/computer-use.md)、[Kimi](../agents/kimi-code/computer-use.md)、[Qoder](../agents/qoder/computer-use.md)、[Grok](../agents/grok/computer-use.md)、[MiMo](../agents/mimo/computer-use.md) |
+| 2. 窗口相对事件路由 | ZCode（pid+bounds+相对坐标）、Kimi（channel 双通道）、Qoder（`CGEventPostToPid`+`BackgroundTextInputSession`） |
+| 3. SLS 签名事件认证封包 | [Kimi SignedKeyboard](../agents/kimi-code/computer-use.md)（遮挡窗口也能落键，致谢 Cua AI） |
+| 4. 私有框架窗口/空间操作 | [Claude app-cu-helper](../agents/claude-code/computer-use.md)（SkyLight/CGS）、[Synara](../agents/synara/computer-use.md)（activation shield） |
 
-配套的合成焦点会话：ZCode `RegisterBackgroundInput` + `*_to_app` 键盘路径（按压前后采样 `frontmostPid`/`axFocusedPid` guard，受理与生效分离上报）。
+**新 8 家全部缺席此赛道**：CDP/页内合成不占真实光标（不需要后台语义）；nut-js/pyautogui 只有全局前台（做不到）。配套纪律趋同：永不移动真实光标/永不抢前台/永不用 HID；失败时「投递成功 ≠ 生效」单独上报。
 
-**实现要点**：
-- 焦点 guard 三态上报：ZCode `focusSetStatus:"invalid_element"` 但 `ax_ok:true`——焦点设置失败不影响动作受理，两者**分开报告**。
-- 后台失败不静默升级：MiniMax "background 被应用拒绝时，运行时绝不自动改发 foreground"，升级决定留给模型+用户；ZCode event 策略直接拒 `FOREGROUND_REQUIRED` 且什么都不发。
-- 兜底阶梯明确：AX 写值 → 编辑命令 → AX 聚焦 → `activate:true`（短暂抬窗，上报 `used_backend=foreground_targeted`）。
-
-**取舍**：私有 API 路线（3/4）能力最强但随 macOS 版本演化有失效风险，且过不了 App Store 审核——本地原生执行系（10 家）全部走 Developer ID 分发侧面印证了这一点。纯 AX 路线最稳但覆盖不了 Chromium 后台键盘，这正是 SignedKeyboard 存在的原因。
+**取舍**：私有 API 能力最强但随 macOS 演化有失效风险、过不了 App Store——本地执行系全走 Developer ID 侧面印证；纯 AX 最稳但覆盖不了 Chromium 后台键盘（SignedKeyboard 存在的理由）。
 
 ---
 
 <a id="p5"></a>
 ## P5. 剪贴板 paste 与 setValue 分层
 
-**解决什么问题**：往字段里放文本有三条路——AX 写值、剪贴板+Cmd+V、逐键合成——可靠性与侵入性完全不同，需要分层并让模型能选对。
+**解决什么问题**：往字段放文本有三条路——AX 写值、剪贴板+Cmd+V、逐键合成——可靠性与侵入性不同，要让模型选对。
 
-**谁在用**：
-- [ZCode `paste`](../agents/zcode/computer-use.md)（§5.3）：`ZCodeCuaPasteDataProvider` 借系统剪贴板 → 模拟 Cmd+V → **恢复用户原剪贴板**；无 app 读取粘贴内容 → 超时报错而非假成功；后台 app 触发 `FOREGROUND_REQUIRED`（本质是事件路径）。
-- [Codex](../agents/codex/computer-use.md)（§3.3）：mac paste 同样恢复用户剪贴板；`format: text|md|html` 富文本。
-- [Kimi `paste`](../agents/kimi-code/computer-use.md)（§3.2）：临时剪贴板投递并事后恢复；`text|md|html`。
-- [Qoder `paste`](../agents/qoder/computer-use.md)（§4.1）：走系统剪贴板，**条件恢复**用户原剪贴板（仅当剪贴板仍属该次粘贴、保留期间用户的其他变更）；Runtime 文案「粘贴≠编辑成功，须回读 app state 验证」。
-- [MiniMax BU `paste`](../agents/minimax-code/browser-use.md)：**不读宿主 OS 剪贴板**，headless 用会话内隔离剪贴板——反向红线。
-- setValue 面：本地执行系 10 家均有（Qoder 限 AX `(settable, string)` 并警告 Monaco「只能改 AX 镜像不改真实 buffer」；Grok 有写后回读校验；MiMo 对 AXStaticText 直接报错）；MiniMax 还提示「值变了不等于输入处理器执行过，需验证依赖 UI」；Goose 委托 Peekaboo `type`。
+| 层 | 代表 | 要点 |
+|---|---|---|
+| setValue（AX 写值） | 本地执行系 10 家 | 可后台、无自动纠错；Qoder 限 `(settable, string)` 并警告 Monaco「只改 AX 镜像」陷阱 |
+| paste（借还剪贴板） | [ZCode](../agents/zcode/computer-use.md)、[Codex](../agents/codex/computer-use.md)、[Kimi](../agents/kimi-code/computer-use.md)、[Qoder](../agents/qoder/computer-use.md)（条件恢复+「粘贴≠编辑成功」） | 恢复放 finally；后台 app 触发 `FOREGROUND_REQUIRED`（ZCode 实证） |
+| type（逐键合成） | Claude（多行走剪贴板快速通道）、Kimi（UTF-8+回读） | 最慢但最通用 |
+| **变体（新）** | [UI-TARS](../agents/ui-tars/computer-use.md)：Windows `type`=剪贴板 Ctrl+V 再还原 | **type 借剪贴板规避 IME**——快速通道之外的新用途 |
+| **截断（新）** | [browser-use](../agents/browser-use/browser-use.md)：`<secret>` 占位符执行期替换 | 敏感值不进模型上下文，比借还更早截断 |
+| 反向红线 | [MiniMax BU](../agents/minimax-code/browser-use.md) 不读宿主剪贴板；Synara `read_clipboard` 唯一必审读工具 | 剪贴板是隐私面 |
 
-**实现要点**：借还必须原子且失败安全（恢复剪贴板放在 finally）；paste 结果要验证（有没有 app 真的读了）；`type` 多行走剪贴板快速通道（Claude）。
-
-**取舍**：paste 快且保留富文本，但动用户剪贴板（需要借还）且要求前台；setValue 最干净但只对 AX 可达控件有效。把三者作为显式分层暴露（而不是自动降级链）让模型按场景选择，是本地执行系的共同演化方向。
+**取舍**：paste 快但动用户剪贴板且要求前台；setValue 最干净但只对 AX 可达控件有效；三层显式暴露（不自动降级）是共同演化方向。
 
 ---
 
 <a id="p6"></a>
-## P6. 控制租约与互斥（CONTROLLER_BUSY / lease / generation fencing）
+## P6. 控制租约与互斥（lease / generation fencing）
 
-**解决什么问题**：多个会话同时操作一台电脑 = 灾难。需要「同一时刻只有一个控制器」的硬保证，以及陈旧控制器消息不串话的防护。
+**解决什么问题**：多会话同操一台电脑=灾难；需要「同一时刻只有一个控制器」+陈旧消息作废。
 
-**谁在用**：
-- [ZCode](../agents/zcode/computer-use.md)（§6.3）：`CONTROLLER_BUSY`——另一会话持有输入租约时动作失败，**永不重试**，`details.owner` 携带占用者，要求模型报告并请用户处理；浏览器侧对应 `browserGeneration` 陈旧路由防护。
-- [MiniMax](../agents/minimax-code/computer-use.md)（§3.3–3.4）：单持有者 lease，变更类请求才占租约（观察不占）、TTL 定时器、FIFO 缓存 64 条已释放 turn；**generation fencing**——每次重建 generation +1，控制消息校验 generation 防旧进程串话（`computer_generation_mismatch`）。
-- [Cursor](../agents/cursor/computer-use.md)（§3.4）：`computer_start/release_control` 显式租约（remote 模式首个输入前必调）；Windows 侧注释直言：只控「屏上存在感」不做输入门控的租约是负资产（实测一次会话浪费 13 秒）——**租约要么管输入，要么别要**。
-- [Claude](../agents/claude-code/computer-use.md)（§6）：独占锁 + `app_release` 例外放行。
-- [Synara](../agents/synara/computer-use.md)（§6）：能力域闸门 `computer:control` + "Threads cannot delegate computer control to tasks they create"（父线程不得向子任务下放桌面控制权）；`nativeInputEpoch` 让人接管后旧在途结果按「已派发-效果未知」上报。
-- [Codex](../agents/codex/computer-use.md)（§6.3）：**无 lease**（实证无符号）；靠 `turn_ended` 回收 + per-turn 停止 + `codexTurnMetadata` 请求记账——单用户桌面场景下的简化选择。
-- [Qoder](../agents/qoder/computer-use.md)（§3）：无跨会话租约符号，但 `ComputerUse` 类内置 `busy` 单飞（同一连接同时只允许一个在途请求）+ Runtime 侧 `ComputerUseIPCRequestLimiter/RequestAdmission/RequestLease`——「串行化」是租约的弱形态。
-- [Grok](../agents/grok/computer-use.md)（§6）：`CURemoteControlLease`（活跃 remote 会话唯一："Remote control is busy with another session"）+ `CURemoteControlPermit` 持有在途输入（heldInputs）支持即时撤销；云端对应 `desktop_lease_actor_id`——本地与云端同一租约概念的两种编码。
-- [MiMo](../agents/mimo/computer-use.md)（§4.1）：独家**锁屏一次性租约**——1–20 秒单调 TTL、原子消费、物理输入/断连/轮次结束即撤销并重锁，异常断开触发 46 秒原生准入隔离期。
+| 家 | 实现 |
+|---|---|
+| [ZCode](../agents/zcode/computer-use.md) | `CONTROLLER_BUSY` 永不重试、报 owner；浏览器侧 `browserGeneration` |
+| [MiniMax](../agents/minimax-code/computer-use.md) | lease（观察不占）+TTL+**generation fencing** 防旧进程串话 |
+| [Cursor](../agents/cursor/computer-use.md) | 显式租约；教训：只控「屏上存在感」不管输入的租约是负资产 |
+| [Claude](../agents/claude-code/computer-use.md) / [Synara](../agents/synara/computer-use.md) / [Grok](../agents/grok/computer-use.md) | 独占锁 / 线程禁下放+nativeInputEpoch / `CURemoteControlLease`+Permit 即时撤销 |
+| [Codex](../agents/codex/computer-use.md) / [Qoder](../agents/qoder/computer-use.md) | 无 lease（turn 回收简化）/ 串行化是租约弱形态（单飞+Admission） |
+| [MiMo](../agents/mimo/computer-use.md) | 独家锁屏 1–20s 一次性租约 |
+| **新 8 家零租约**（反例） | 替代物两种弱形态：[Dia](../agents/dia/browser-use.md)「同时仅一个 browser 委派」串行化；[Comet](../agents/comet/computer-use.md)「标签组被关闭即强制 terminate」 |
 
-**实现要点**：租约要「永不自动重试」并报告 owner（把冲突决策交给人）；fencing token（generation）与租约正交——租约管「现在谁在控制」，generation 管「旧控制器的迟到消息作废」。
+**要点**：租约「永不自动重试」并报 owner；fencing 与租约正交（租约管现在谁在控制，generation 管迟到消息作废）。
 
-**取舍**：租约 + fencing 是多会话产品的必需品（ZCode/MiniMax/Synara 都是多会话形态）；单会话产品（Codex）可以省。Cursor 的教训说明租约本身也有成本，要和真实威胁模型对齐。
+**取舍**：租约+fencing 是多会话必需品；单会话产品可省——新 8 家多为单会话库/浏览器形态，结构性免租。
 
 ---
 
 <a id="p7"></a>
-## P7. 防重放（actionSent / possibly_sent）与 kill switch
+## P7. 防重放（possibly_sent）与 kill switch
 
-**解决什么问题**：网络/进程边界上「动作到底发出去没有」是三态而非两态。把「可能已下发」当成「失败」去重试，会双击、双发消息、双下单。同时需要一个用户可控的**总闸**。
+**解决什么问题**：动作「发出去没有」是三态不是两态；把「可能已下发」当失败重试会双击双下单。还需用户可控总闸。
 
-**谁在用**：
-- [ZCode](../agents/zcode/computer-use.md)（§6.3–6.4）：收据 `dispatch_status ∈ {sent, possibly_sent, not_sent}`；`possibly_sent ⇒ actionSent=true ⇒ retry:"reobserve"`——非幂等动作只有 `actionSent===false` 才允许重放；broker 响应丢失显式建模为 `broker_response_ambiguous`（不可自动重试）。kill switch：`stop_computer_control` 闩锁后每个工具入口 `ensureRunning()` 在任何 backend 读取**之前** fail-hard（仅 `request_access`/`stop` 两豁免，否则无法报告状态/停止）。
-- [Kimi](../agents/kimi-code/computer-use.md)（§5.4）：`delivery_unverified`/`focus_unverified`/`effect:"unverifiable"` 三态；"A delivered click with an unobserved effect is never automatically repeated"；被吞事件可能分钟级后才落地——盲目重发同一坐标可能双击。
-- [MiniMax](../agents/minimax-code/browser-use.md)（§3.1）：`click_and_wait_for_navigation` 原子动作（先注册导航监听再点击，消除「先点击后监听」竞态）；空闲会话复活「绝不重放输入动作」。
-- [Synara](../agents/synara/computer-use.md)（§5）：每次原生输入派发推进 `nativeInputEpoch`，人接管/暂停后 epoch 变化，旧在途结果按「已派发-效果未知」上报。
-- kill switch 家族：[MiniMax 桌面遮罩停止按钮](../agents/minimax-code/computer-use.md)（点击等价 abort API）、[Synara 物理 Escape 急停](../agents/synara/computer-use.md)（专职 helper 进程，仅活跃 generation 时武装 + 输入冷却窗）、[Claude EscHotkey](../agents/claude-code/computer-use.md)、[Codex URL 禁区/per-turn 停止](../agents/codex/computer-use.md)（§6.1）、[Grok 三路急停](../agents/grok/computer-use.md)（§6：物理 Esc event tap + 用户 Stop + 协议级 `USER_ABORTED` 错误码——错误文案直接写明"本回合禁再调用输入类工具"）。
+| 家 | 实现 |
+|---|---|
+| [ZCode](../agents/zcode/computer-use.md) | `dispatch_status` 三态收据 + `broker_response_ambiguous` + kill switch 闩锁（两豁免） |
+| [Kimi](../agents/kimi-code/computer-use.md) | `delivery_unverified`/`focus_unverified`/`unverifiable` 三态；已投递未观察绝不自动重发 |
+| [MiniMax](../agents/minimax-code/browser-use.md) | `click_and_wait_for_navigation` 原子动作消除竞态；复活绝不重放 |
+| [Synara](../agents/synara/computer-use.md) / [Grok](../agents/grok/computer-use.md) | nativeInputEpoch /「未投递即失败」不做半截动作 |
+| 急停家族 | 软件闩锁（ZCode）/ 物理 Esc（Synara/Claude/Grok）/ UI 停止（MiniMax）/ Takeover（Kimi/Cursor） |
+| **（新）**[Comet](../agents/comet/browser-use.md) | 视口守卫：版本不一致**拒绝执行整批**——「未投递即失败」族的批量版 |
+| **（新）**[Dia](../agents/dia/browser-use.md) | `outcome=unknown` 禁整格重放、失败格重置 bindings 但副作用不回滚 |
+| **（新）**[Atlas](../agents/atlas/computer-use.md) | 停止后内嵌指令 "all tool calls will be ignored. End the agent turn."——急停写进提示词层 |
 
-**实现要点**：
-1. 错误对象携带 `actionSent`（保守默认 false）+ `retry` 建议（reobserve/retry/never）三件套。
-2. 「已派发-效果未知」是一等结果状态，不是错误。
-3. kill switch 必须豁免自身与状态查询（否则停不下来也看不到状态）；闩锁语义（保留第一个 reason）保证审计一致。
-4. 急停入口多样化：软件闩锁（ZCode）、物理 Esc（Synara/Claude）、UI 停止按钮（MiniMax）、浏览器 Takeover（Kimi/Cursor）。
+**要点**：错误对象带 `actionSent`+`retry` 建议；「已派发-效果未知」是一等状态；kill switch 豁免自身与状态查询；闩锁保留首个 reason。
 
-**取舍**：收据三态让协议变复杂，但「双击」类事故不可接受——ZCode 是事故驱动设计（注释明言），值得后来者直接抄。
+**取舍**：收据三态复杂但双击不可接受——ZCode 事故驱动设计值得直接抄；提示词层急停（Atlas）只能做补充，不能替代协议层。
 
 ---
 
 <a id="p8"></a>
-## P8. 浏览器三架构选型：内嵌 WebView / 真浏览器扩展+native messaging / 云端浏览器
+## P8. 浏览器架构选型：内嵌 / 扩展 / 云端 / 外挂，外加两种新变体
 
-**解决什么问题**：控制浏览器有三条根本不同的路：自己内嵌一个（可控、无登录态）、驱动用户真浏览器（有登录态、不可控）、云端开一个（完全隔离、无本机数据）。12 家各有实例或明确缺席，且多家**并存两条以上**。
+**解决什么问题**：控制浏览器有几条根本不同的路——自内嵌（可控无登录态）、驱动真浏览器（有登录态不可控）、云端开一个（隔离无本机数据）。20 家后从三架构+一变体扩成六格。
 
 | 架构 | 优点 | 代价 | 实例 |
 |---|---|---|---|
-| **内嵌 WebView** | 完全可控、免系统权限、可录屏可审计 | 无用户真实登录态、非真实环境 | [ZCode IAB](../agents/zcode/browser-use.md)（BrowserView + `executeBrowserCommandOnView`）、[MiniMax](../agents/minimax-code/browser-use.md)（WebContentsView + CDP）、[Synara 面板](../agents/synara/browser-use.md)（BetterWright + `contents.debugger`）、[Cursor browserViewMainService](../agents/cursor/browser-use.md)、[Kimi 桌面内嵌](../agents/kimi-code/browser-use.md)（隔离世界 1001/1002 注入）、[Qoder in-app](../agents/qoder/browser-use.md)（WebContentsView 会话私有标签 `chat:<sid>:browser:*`）、[Codex iab](../agents/codex/browser-use.md)、[Claude Browser pane](../agents/claude-code/browser-use.md)（第二注册表） |
-| **真浏览器扩展** | 复用真实登录态、真实环境 | 依赖用户安装、`isTrusted=false`、iframe 受限 | [Claude in Chrome](../agents/claude-code/browser-use.md)（native messaging + 唯一扩展 ID 双向锁定）、[Kimi webbridge](../agents/kimi-code/browser-use.md)（Go daemon + WS 反连扩展）、[Codex chrome 扩展](../agents/codex/browser-use.md)（官方扩展 + extension-host 原生宿主）、[Cursor cursor-browser-extension](../agents/cursor/browser-use.md)（常量，本机未验证）、[Qoder Browser Connector](../agents/qoder/browser-use.md)（Native Messaging 心跳文件发现，6 浏览器 5 扩展 ID 白名单，工具在扩展内执行） |
-| **云端浏览器** | 完全隔离、无本机数据、可弹性伸缩 | 延迟、无本地登录态、服务不可见 | [Codex cdp 后端](../agents/codex/browser-use.md)（id 固定 `"cdp"`）、[Cursor remote 模式/云 worker](../agents/cursor/computer-use.md)（xdotool + ffmpeg x11grab）、[Grok Bot 云端四件套](../agents/grok/browser-use.md)（browser_subagent + 托管 MCP + box 沙箱 + cookie 逐 origin 导入——本机**零**浏览器 API）、[Devin 云 VM Interactive Browser](../agents/devin/browser-use.md)（CDP :29229 + blueprint 登录态） |
-| **（变体）纯 MCP 外挂** | 零自研载体、工具面归第三方 server 所有 | 能力与安全完全取决于所挂 server | [Goose](../agents/goose/browser-use.md)（Playwright/Chrome DevTools/Puppeteer/Selenium/Browserbase 五扩展，官方只管安装与白名单）、[MiniMax chrome-devtools-mcp 插件](../agents/minimax-code/browser-use.md)（与原生 `browser` 工具并存） |
+| 内嵌 WebView | 完全可控、免权限、可审计 | 无真实登录态 | [ZCode IAB](../agents/zcode/browser-use.md)、[MiniMax](../agents/minimax-code/browser-use.md)、[Synara 面板](../agents/synara/browser-use.md)、[Cursor](../agents/cursor/browser-use.md)、[Kimi 桌面内嵌](../agents/kimi-code/browser-use.md)、[Qoder in-app](../agents/qoder/browser-use.md)、[Codex iab](../agents/codex/browser-use.md)、[Claude Browser pane](../agents/claude-code/browser-use.md) |
+| 真浏览器扩展 | 复用真实登录态 | 依赖安装、`isTrusted=false` | [Claude in Chrome](../agents/claude-code/browser-use.md)、[Kimi webbridge](../agents/kimi-code/browser-use.md)、[Codex 扩展](../agents/codex/browser-use.md)、[Qoder Connector](../agents/qoder/browser-use.md)、**[Stagehand MV3 运行时](../agents/stagehand/browser-use.md)（推理执行都在扩展里）**、**[Comet 特权 CRX](../agents/comet/browser-use.md)（浏览器自带+23 私有 API）** |
+| 云端浏览器 | 完全隔离、弹性 | 延迟、无本地登录态 | [Codex cdp](../agents/codex/browser-use.md)、[Cursor 云 worker](../agents/cursor/computer-use.md)、[Grok 云四件套](../agents/grok/browser-use.md)、[Devin 云 VM](../agents/devin/browser-use.md) |
+| 纯 MCP 外挂 | 零自研载体 | 能力安全归第三方 | [Goose](../agents/goose/browser-use.md)（五扩展）、[MiniMax chrome-devtools-mcp](../agents/minimax-code/browser-use.md)、**[Agent TARS 进程内 MCP](../agents/ui-tars/browser-use.md)（`InMemoryTransport` 零子进程——外挂的内向变体）** |
+| **（新）CDP 直连/附着真浏览器** | 真登录态、免扩展安装 | 需调试端口/端口发现；凭据面全开 | **[browser-use](../agents/browser-use/browser-use.md)（自启 Chrome+cdp-use）、[UI-TARS](../agents/ui-tars/browser-use.md)（BrowserFinder+puppeteer-core）、[Dia](../agents/dia/browser-use.md)（DevToolsActivePort 附着用户登录态）、[eko-nodejs](../agents/fellou/browser-use.md)（`setCdpWsEndpoint`）** |
+| **（新）fork Chromium 即载体** | 登录态=产品资产；执行观察同进程侧 | 浏览器工程极重；OS 边界不可逾越 | **[Comet](../agents/comet/README.md)、[Atlas](../agents/atlas/README.md)（Mojo 进程内）、[Dia](../agents/dia/README.md)（定制+附着）、[Fellou](../agents/fellou/README.md)（扩展宿主）**——agentic browser 四家（[capability-matrix §6](../comparison/capability-matrix.md#6-谱系关系图)） |
 
-**实现要点**：
-- 扩展架构的安全四件套（从 Claude/Kimi/Codex 归纳）：`allowed_origins` 锁定唯一扩展 ID ↔ native host 仅接受唯一扩展（双向 pin）；本地 socket/端口 0700 + 回环绑定 + 非回环明文警告；会话容器化（Claude 的 MCP tab group / Kimi 的 session=tab group，只动自己组的 tab）；用户 tab 借用治理（`claimTab` 显式接管 / `find_tab active:true` 只借不抢 `borrowed:true`）。
-- 内嵌架构的配套：后端广告制（`agent.browsers.list()` 是唯一可用性来源，绝不静默换后端——ZCode）、CDP 方法黑名单（Cursor 拒绝 Input/Storage/Target 域；Synara 禁 cookie/证书/下载行为）、无任意 JS（MiniMax 原生工具明确不提供 evaluate，JS 执行让位给 chrome-devtools-mcp 插件）。
-- 录屏走内嵌优势区：ZCode 用 Electron 内置 Chromium `MediaRecorder` 出 WebM（无 FFmpeg 依赖），并成为 video2code 插件「录制→复刻」流水线的上游。
+**要点**：扩展安全四件套（双向 pin 扩展 ID、0700 回环、会话容器化、tab 借用治理）；内嵌配套（后端广告制、CDP 黑/白名单、无任意 JS）；成熟产品走向多后端统一 API+能力广告。
 
-**取舍**：三种架构覆盖三种风险偏好，成熟产品最终都走向多后端统一 API（Codex 四后端、Synara 三路径、Kimi 双轨），以「后端能力广告（capabilities advertised）」向上屏蔽差异。
+**取舍**：三种旧架构对应三种风险偏好；两种新变体把「登录态」从负债变成资产——代价是永远出不了浏览器边界（这恰是 [P23](#p23) 云端委派要补的洞）。
 
 ---
 
 <a id="p9"></a>
 ## P9. MCP 作为模型面通用挂载
 
-**解决什么问题**：CU/BU 工具面需要跨宿主（CLI/桌面/插件）、跨产品复用；MCP 是最低成本的通用挂载协议。
+**解决什么问题**：CU/BU 工具面要跨宿主跨产品复用；MCP 是最低成本挂载协议。
 
-**谁在用**（八种挂载形态）：
-- **隐藏子命令入口**：[Claude](../agents/claude-code/README.md)——`claude --computer-use-mcp` / `--claude-in-chrome-mcp` / `--chrome-native-host`，同一二进制自挂自连（stdio）。
-- **一方 MCP provider**：[Cursor](../agents/cursor/README.md)——内置扩展调 `vscode.cursor.registerMcpProvider()`（`cursor-ide-browser` / `cursor-computer-use`），与用户 MCP 走同一审批管线。
-- **插件 + Host Binding 门控**：[MiniMax](../agents/minimax-code/README.md)——官方插件带 `*.binding.json` 声明 `hostCapability: computer.use/browser.use`，准入后运行时才注入原生工具；插件吊销立即 `setEnabled(false)` 并掐断在途调用。
-- **CU 服务即 MCP server**：[Kimi](../agents/kimi-code/computer-use.md)——`kimi-cu mcp` 直接把原生服务暴露成 stdio MCP（18 工具 + js/js_reset），另经 node-repl facade `@kimi/cu` 走代码模式。
-- **REPL + 极简工具面**：[Codex](../agents/codex/computer-use.md)——MCP 只露 `js`/`js_reset`，banner `await import("@oai/cua/tinyskyAlt")` 后整个能力在 `cua` 全局对象上。
-- **共享 REPL + Symbol 桥接**：[ZCode](../agents/zcode/README.md)——`mcp__node_repl__js` 一个工具承载 CU+BU，`Symbol.for("zcode.node-repl.computer-use-bridge")` 注入桥接器，SDK+skill 文档教模型写 JS。
-- **SKILL 注入 + 内置 MCP 双轨**：[Qoder](../agents/qoder/README.md)——mac CU 的子插件**无 MCP**，只注入 SKILL.md 指示 agent 走 node_repl SDK（能力域=单 app）；Windows CU 另走 stdio MCP（16 工具）；BU 则是主进程内置 `browser-use` MCP server（16 工具，注册时钉死基线校验，见 P15）——同一产品内按平台/能力选面。
-- **编排下沉（sidecar 即 MCP server）**：[Grok Bot](../agents/grok/computer-use.md)（§2）——`computer_*` 16 工具的完整 catalog（schema/instructions/refusals 分类表）整体嵌进 Swift sidecar 二进制，`--mcp-stdio --conversation-id` 直接充当模型侧 MCP server，宿主编排层被绕过——工具面承载的第三条路（对应 MiMo `js` REPL 内核同样只露一个工具，但面在 `@mimo/sky` 门面，[MiMo CU §5.1](../agents/mimo/computer-use.md)）。
+| 挂载形态 | 家 | 要点 |
+|---|---|---|
+| 隐藏子命令入口 | [Claude](../agents/claude-code/README.md) | `--computer-use-mcp` 同一二进制自挂自连 |
+| 一方 MCP provider | [Cursor](../agents/cursor/README.md) | 与用户 MCP 同一审批管线 |
+| 插件+Host Binding | [MiniMax](../agents/minimax-code/README.md) | 准入后注入原生工具；吊销掐断在途 |
+| CU 服务即 MCP server | [Kimi](../agents/kimi-code/computer-use.md) | `kimi-cu mcp` stdio + node-repl facade |
+| REPL+极简面 | [Codex](../agents/codex/computer-use.md) / [MiMo](../agents/mimo/computer-use.md) | 面在 `cua`/`@mimo/sky` 对象图 |
+| 共享 REPL+Symbol 桥接 | [ZCode](../agents/zcode/README.md) | 一个工具承载 CU+BU |
+| SKILL 注入+内置 MCP 双轨 | [Qoder](../agents/qoder/README.md) | 按平台/能力选面 |
+| 编排下沉（sidecar 即 server） | [Grok Bot](../agents/grok/computer-use.md) | catalog 嵌二进制 `--mcp-stdio` 直挂 |
+| **（新）进程内内存管道** | [Agent TARS](../agents/ui-tars/browser-use.md) | 三 server `InMemoryTransport` 直连——**零子进程 MCP** |
+| **（新）内嵌 handler 巨面** | [Dia](../agents/dia/browser-use.md) | dia-tools MCP 80 工具（浏览器 7+SaaS 22 家），spec.yaml 白名单下发 |
+| **（新）远端 MCP 脚本回传** | [Fellou/eko](../agents/fellou/browser-use.md) | 响应带 `extInfo.javascript`→页内 `execute(args)`——**工具逻辑服务端热更新** |
 
-**实现要点**：
-- 工具 schema 可以由原生侧单一事实源生成（Kimi：二进制内嵌 schema JSON + `generate-tool-catalog.py`；facade 与 MCP 双轨参数别名表）。
-- 未启用 = 工具不存在（fail-closed），而不是存在但报错（MiniMax/Cursor 的门控共同点）。
-- 延迟披露：Claude 的 ToolSearch、MiniMax 的 `tool_search`——大量工具不进初始列表，按需加载。
+**要点**：schema 单一事实源生成（Kimi）；未启用=工具不存在（fail-closed）；延迟披露（ToolSearch/tool_search）。
 
-**取舍**：MCP 面越薄（Codex 3 工具）越依赖模型编程能力；越厚（Claude ~40 工具）越依赖 routing 与检索。skill/文档驱动的「模型面」（ZCode/Kimi）是折中：常驻的是方法论手册，参数细节按需拉取。
+**取舍**：面越薄越靠模型编程能力，越厚越靠 routing 检索；脚本回传形态换取热更新，但「云端下发代码本地执行」是全新信任面（[P23](#p23) 风险）。
 
 ---
 
 <a id="p10"></a>
 ## P10. 审批分级与域白名单
 
-**解决什么问题**：「能操作电脑」不等于「什么都能干」。需要按目标（app/域）与按动作风险分级的授权体系，且默认拒绝。
+**解决什么问题**：「能操作」≠「什么都能干」；需要按目标与动作风险分级授权，默认拒绝。
 
-**谁在用**：
-- **应用白名单 + tier 限权**：[Claude](../agents/claude-code/computer-use.md)（§6.1）——浏览器→`read`（可见不可点，指引改用 Chrome MCP）、终端/IDE→`click`（可点不可打字，防"AI 往 shell 里打命令"，指引改用 Bash）、其他→`full`；执行靠前台应用门控，batch 每步前重查。风险敏感动作（删除数据/CAPTCHA/支付/医疗）在 Codex 策略 prompt 里编号 [1]–[17] 四档确认。
-- **服务端目标策略**：[Codex](../agents/codex/computer-use.md)（§6.1）——`getAppPolicy → {decision, risk, allowPersistentApproval}` + AppApprovalStore 持久化（ALWAYS/ONCE/SESSION/TURN）+ MCP elicitation 弹审批；企业托管键可整体关闭能力。
-- **origin 白名单 + CDP 拒绝列表**：[Cursor](../agents/cursor/browser-use.md)（§7）——导航禁 `file://`、管理员 allowlist、CDP 域级拒绝（Input/Storage/Target/Tethering）+ 方法级拒绝（cookie 四件套、`Page.navigate`…）；[Synara](../agents/synara/browser-use.md) 页面域白名单 + cookie/证书/下载黑名单。
-- **凭据红线**：[Codex browserAuth](../agents/codex/browser-use.md)（凭据在安全表单收集、值不回传模型）、[MiniMax](../agents/minimax-code/browser-use.md)（不可读/生成/填写任何认证输入；上传路径白名单=当前轮附件∪活动工作区，含 symlink 解析）、[Synara BetterWright](../agents/synara/browser-use.md)（`credentialCapture:false`、密码填充 vault 值永不回传模型）。
-- **语义级授权引擎**：[Synara computerVisibleUse](../agents/synara/computer-use.md)（§6.3）——从用户消息正则判定「可见使用」意图（引用块/代码块先剥离防注入），后台倾向短语一票否决，授权只沿「例行继续」存续，2 秒用户安静期。
-- **最终动作确认合同**：[MiniMax](../agents/minimax-code/browser-use.md)（§6.6）——发布/发送/删除/购买/转账必须紧邻的用户显式确认；"继续/好的"不算确认；草稿变化后确认作废；确认卡 affirmative 必须点名精确动作。
+| 机制 | 家 | 要点 |
+|---|---|---|
+| 应用 tier 限权 | [Claude](../agents/claude-code/computer-use.md) | 浏览器 read / 终端 click / 其他 full |
+| 服务端目标策略 | [Codex](../agents/codex/computer-use.md) | AppApprovalStore 四档 + elicitation；策略弹、权限硬 |
+| origin 白名单+CDP 拒绝列表 | [Cursor](../agents/cursor/browser-use.md) / [Synara](../agents/synara/browser-use.md) | file:// 禁、cookie 四件套拒 |
+| 凭据红线 | Codex browserAuth / MiniMax / Synara | 值不回传模型；上传路径白名单 |
+| 语义级授权引擎 | [Synara](../agents/synara/computer-use.md) | 可见使用正则；授权绑定对话语义 |
+| 最终动作确认合同 | [MiniMax](../agents/minimax-code/browser-use.md) | 发布/支付须紧邻显式确认；草稿变化即作废 |
+| 通用权限伞（无专用门） | [Goose](../agents/goose/computer-use.md)（fail-open）/ [Devin](../agents/devin/computer-use.md)（两层浓缩） | 两极对照 |
+| **（新）委派级授权** | [Dia](../agents/dia/browser-use.md) | 购买/发消息/删除需父级传授权，否则回 `exact pending action`；**无逐动作弹窗**；`contentIsUntrusted` 免疫注入 |
+| **（新）聊天内凭据表单** | [Atlas](../agents/atlas/computer-use.md) | BrowserAuth：agent 遇登录页渲染表单、**用户手填**、agent 只接管填写——凭据根本不过模型 |
+| **（新）域名黑白名单+负设计** | [Comet](../agents/comet/computer-use.md) | 企业 policy+内部页恒禁；但 JS 对话框**自动接受**（效率优先，无人工确认） |
+| **（新）框架纪律与产品话术分裂** | [Fellou](../agents/fellou/computer-use.md) | 框架 `request_help` 把 CAPTCHA/支付交还人，官网却宣称 AI 解 CAPTCHA——两张皮警示 |
 
-- **通用权限伞罩住 CU（无 CU 专用门的另一极）**：[Goose](../agents/goose/computer-use.md)（§6）——GooseMode 四档 × 每工具 permission.yaml 三级 × LLM 独立审查（smart_approve 只读判定 / adversary mode，**fail-open**），CU 动作只享通用工具权限；[Devin](../agents/devin/computer-use.md)（§5）把审批浓缩为组织级开关 + 会话内同屏接管两层。
-
-**实现要点**：拒绝要带 `decisionSource` 与**反绕过指令**（Codex 错误文案硬编码 "must not attempt to achieve the same outcome via workaround, indirect execution, raw CDP…"；ZCode「权限被拒后禁止换用其他 UI 自动化技术」）——拒绝不是建议，是跨面禁令。
-
-**取舍**：白名单维护成本高（Claude 硬编码敏感应用分类）；纯 prompt 策略可被用户整体调低（Codex 本机 `approval_policy="never"`），所以**策略层必须是弹性的、权限层与禁区必须是硬的**（Codex 分册原话）。
+**要点**：拒绝带 `decisionSource`+反绕过指令——拒绝不是建议是跨面禁令；**策略层弹性、权限层与禁区硬**（Codex 本机 `approval_policy="never"` 证明纯 prompt 可被整体调低）。
 
 ---
 
 <a id="p11"></a>
 ## P11. Fail-closed 工具注入（能力门控）
 
-**解决什么问题**：能力未启用/未授权时，模型不应该看到工具（看到就会试图调用）；权限中途吊销时，在途调用要能被掐断。
+**解决什么问题**：未启用时模型不该看到工具；吊销时要能掐断在途调用。
 
-**谁在用**：
-- [MiniMax](../agents/minimax-code/computer-use.md)（§3.1）——工具目录装配时先**剔除所有** `computer_` 前缀工具，仅当插件准入 + 用户会话选中 + client 就绪才重建追加；执行时再查一次 `isComputerUseEnabled()`，AbortController 注册表让吊销即时掐断在途调用；BU 侧 kill switch 吊销后「连工作区 I/O 都不做」。
-- [Cursor](../agents/cursor/computer-use.md)（§2）——Statsig 门关 → 不注册 provider，只挂 `onDidChangeGates` 监听延迟注册；注释明言要区分「门真的关」与「Statsig 未水合」。
-- [ZCode](../agents/zcode/browser-use.md)（§6）——后端广告制：`agent.browsers.list()` 是唯一可用性来源，显式选择未广告后端 → `backend_unavailable`，绝不静默换后端；宿主剔除没有 broker env 的可疑 CUA MCP server。
-- [Claude](../agents/claude-code/computer-use.md)——`app_scoped && platform==="darwin"` 条件注册；权限模式 env 仅在 bypass 模式注入。
+| 家 | 实现 |
+|---|---|
+| [MiniMax](../agents/minimax-code/computer-use.md) | 装配时剔除 computer_*；执行时再查；AbortController 掐断在途 |
+| [Cursor](../agents/cursor/computer-use.md) | Statsig 门关→延迟注册；区分「门真关」与「未水合」 |
+| [ZCode](../agents/zcode/browser-use.md) | 后端广告制：`list()` 是唯一可用性来源，绝不静默换后端 |
+| [Claude](../agents/claude-code/computer-use.md) | `app_scoped && darwin` 条件注册 |
+| **（新）**[UI-TARS](../agents/ui-tars/browser-use.md) | 非 VLM provider + visual 模式 → **启动期校验拒绝** |
+| **（新）**[Stagehand](../agents/stagehand/browser-use.md) | 外部 MCP 未配置=工具不存在（fail-closed） |
+| **（新）**[Dia](../agents/dia/browser-use.md) | spec.yaml 白名单 + 双层 Seatbelt deny default——工具面与进程面双 fail-closed |
 
-**实现要点**：三层校验（装配时、执行时、宿主转发时）；吊销路径必须能中断在途请求而不只是拒绝新请求。
-
-**取舍**：动态工具列表与 prompt 缓存有张力（工具集变化会使缓存失效）——Cursor 的「延迟注册」与 Kimi 的 `deferred:true` per-session MCP 都是围绕这个张力的工程化。
+**要点**：三层校验（装配/执行/转发）；吊销必须能中断在途请求。动态工具列表与 prompt 缓存有张力（Cursor 延迟注册、Kimi `deferred:true` 是工程化解法）。
 
 ---
 
 <a id="p12"></a>
 ## P12. 批量动作与统一坐标基准
 
-**解决什么问题**：一步步往返太慢（每步一个模型推理回合）；批量时坐标参照系必须唯一，否则「批内截图」与「批外截图」坐标系漂移。
+**解决什么问题**：逐步往返太慢；批量时坐标系必须唯一，否则批内外截图漂移。
 
-**谁在用**：
-- [Claude `computer_batch`/`app_batch`](../agents/claude-code/computer-use.md)（§3.3–3.4）——一次往返顺序执行、首错即停；**批内坐标一律参照批前全屏截图**；每步前跑前台应用门控；`ineffective` 结果不停批（app_batch）。
-- [Kimi `drag_paths`](../agents/kimi-code/computer-use.md)（§3.2）——≤500 笔画 × ≤1024 点的同窗口批量（绘画/手势）；非事务，返回 `results/delivered/total`，中断可从首个 false 续作；`abort_if_cursor_in_window` 用户光标守卫。
-- [Cursor `computer_batch`](../agents/cursor/computer-use.md)（§3.5，Windows）——步骤内是 sidecar 原生词汇、`expect_change` 每步期望声明、`allow_destructive` 显式开关；action-result 自带 2× 局部放大图省一次 zoom 往返。
-- [Claude `browser_batch`](../agents/claude-code/browser-use.md)——每项独立过权限检查（无权限域的下一项失败停批）、不能嵌套。
+| 家 | 实现 |
+|---|---|
+| [Claude](../agents/claude-code/computer-use.md) | computer_batch/app_batch：首错即停；**批内坐标一律参照批前截图**；每步过权限门 |
+| [Kimi](../agents/kimi-code/computer-use.md) | drag_paths ≤500 笔画×1024 点；非事务可续作；用户光标守卫 |
+| [Cursor](../agents/cursor/computer-use.md)（Win） | `expect_change` 每步期望声明；action-result 自带 2× 放大图 |
+| **（新）**[Comet](../agents/comet/browser-use.md) | ComputerBatch：每步随机延迟拟人；**视口守卫（版本不一致拒整批回新截图）**——批协议内建失败语义 |
 
-**实现要点**：批量的三个必答题——坐标系锚定（批前截图）、失败语义（首错停 vs 收集继续，按动作幂等性选择）、权限粒度（每项查还是整批查）。
+**要点**：批量三必答——坐标系锚定（批前截图）、失败语义（首错停 vs 收集继续）、权限粒度（每项查 vs 整批查）。
 
-**取舍**：批量提升吞吐但放大错误半径；Claude 的「每步门控」与 Cursor 的「expect_change」是把安全语义编进批协议的两种风格。
+**取舍**：批量提升吞吐但放大错误半径；Comet 把「失败即重新定位」编进批协议，是 Claude「每步门控」之外的第三种风格。
 
 ---
 
 <a id="p13"></a>
 ## P13. 可视化示能与「人机共驾」
 
-**解决什么问题**：agent 在操作电脑时用户完全看不见 = 信任崩塌 + 无法及时纠偏。需要把「agent 正在干什么」渲染出来，并给人随时夺回控制权的通道。
+**解决什么问题**：agent 操作时用户看不见=信任崩塌；要把「正在干什么」渲染出来并给人夺回通道。
 
-**谁在用**：
-- **合成光标/点击可视化**：[ZCode Ghost 光标 + 点击涟漪](../agents/zcode/computer-use.md)（§9）、[MiniMax 54px 指针动画窗口](../agents/minimax-code/computer-use.md)（`setContentProtection(true)` 不进截图、不读不动真实光标）、[Synara patched driver 合成光标](../agents/synara/computer-use.md)（`--compact-cursor --idle-hide-ms`）、[Kimi Overlay 浮层](../agents/kimi-code/computer-use.md)（cursor/click_glow 素材）。
-- **正在操作的窗口展示**：[ZCode PiP 画中画](../agents/zcode/computer-use.md)（按 session/turn 复位、启动前 hit-surface 校验）、[MiniMax cua-preview + 窗口移交](../agents/minimax-code/computer-use.md)。
-- **操作遮罩与公告**：[MiniMax 桌面遮罩条 + 停止按钮](../agents/minimax-code/computer-use.md)、[Synara activation shield](../agents/synara/computer-use.md)（目标窗口矩形上的护盾面板，防误点其下的系统 UI）。
-- **活动语义浮层**：[Kimi 桌面浏览器 surface 状态机](../agents/kimi-code/browser-use.md)（§3.5）——14 类活动（reading/clicking/typing…）+ 指针/键入动画实时渲染 + 用户 takeover 即停 + receipts 审计（截图 ≤720px、JPEG q72、归一化标记、30 天留存）。
-- **反向教学**：[Claude teach mode](../agents/claude-code/computer-use.md)（§3.5）——全屏 tooltip 引导**用户**操作，`explanation` 是"用户唯一能看到你说话的地方"。
+| 家 | 实现 |
+|---|---|
+| 合成光标/点击可视化 | [ZCode Ghost+涟漪](../agents/zcode/computer-use.md)、[MiniMax 54px 指针](../agents/minimax-code/computer-use.md)（不进截图）、[Synara 合成光标](../agents/synara/computer-use.md)、[Kimi Overlay](../agents/kimi-code/computer-use.md) |
+| 窗口展示/遮罩 | ZCode PiP；MiniMax 遮罩条+停止按钮；Synara activation shield |
+| 活动语义浮层 | [Kimi 桌面浏览器](../agents/kimi-code/browser-use.md)（14 类活动+takeover 即停+receipts） |
+| 反向教学 | [Claude teach mode](../agents/claude-code/computer-use.md)：tooltip 引导**用户**操作 |
+| **（新）**[Atlas](../agents/atlas/computer-use.md) | AgentCursor 虚拟光标**画进截图**（Operator 同款）——模型与人看到同一视觉 |
+| **（新）**[Comet](../agents/comet/computer-use.md) | overlay 状态机：渐变边框+31 条状态标签+Pause/**Take control**；同时 `stopImmediatePropagation` **封锁人类输入**——可视化与输入互斥的反向设计 |
+| **（新）**[UI-TARS](../agents/ui-tars/computer-use.md) | 水流特效+预测点击位画框——执行可见但**不可拦截单步** |
+| **（新）**[SOC](../agents/self-operating-computer/computer-use.md) | 0.5s 装饰性画圈动画——最简「可见性」，代码自认是动画非安全机制 |
 
-**实现要点**：可视化层必须在合成器层与数据面隔离（指针不进截图、PiP 不占帧预算）；接管语义要精确到「打断什么」——Synara 只打断前台在途动作，后台控制刻意不被人输入打断（"Background control shares the Mac with the human"）。
+**要点**：可视化层与数据面隔离（指针不进截图——Atlas 反其道把光标画进截图是「给人看」与「给模型看」合一的新解）；接管语义精确到「打断什么」。
 
-**取舍**：可视化消耗工程预算与系统资源（PiP 一套 30+ 导出符号、故障注入钩子），但它同时是 UX、信任机制和审计界面——12 家中完全没做可视化示能的是 Codex（用通知 + computer-history 覆盖层替代）与 Goose/Devin（透传/云端架构没有本地渲染层）；Grok 把共驾延伸到云 VM（noVNC 控制台），MiMo 的虚拟光标对截屏不可见（`sharingType=.none`）。
+**取舍**：可视化耗工程预算，但同时是 UX、信任与审计界面；20 家中完全没做的收窄为：Devin/Goose（透传/云端无本地渲染层）与库形态四家（browser-use/stagehand/SOC/fellou 开源侧）。
 
 ---
 
 <a id="p14"></a>
 ## P14. 注册表文件型传输（ipc/*.json + token + 懒拉起）
 
-**解决什么问题**：宿主与 Helper 之间需要低耦合的服务发现与鉴权——不想要常驻 daemon 的运维负担，也不想硬编码 socket 路径；Helper 应该「用到才起」，且升级/崩溃互不拖累。
+**解决什么问题**：宿主与 Helper 需要低耦合服务发现与鉴权；Helper 应「用到才起」。
 
-**谁在用**（三种变体 + 两个对照）：
-- **注册表文件 + 懒拉起**：[Qoder](../agents/qoder/computer-use.md)（§3）——SDK 读 `~/.qoder/ipc/computer-use-tools.json`（`{protocol:"qoder-computer-use-tools", version:1, socketPath, instanceId, token(≥32)}`），`lstat` 硬校验（普通文件、非符号链接、`mode & 0o077 === 0`、属主=uid）；不在则 `/usr/bin/open -g` 拉起 Runtime 并等 10s。BU 侧同构：`browser-use.json`（≤32KB + **进程存活校验**）→ HTTP loopback + Bearer token。
-- **service.json + 懒拉起（代工变体）**：[Grok Bot](../agents/grok/computer-use.md)（§2）——daemon 读 `service.json` 取 `rpcSocketPath`，ENOENT/ECONNREFUSED → `/usr/bin/open -g` relaunch+retry（8s ready 超时、200ms ping 轮询）；对端校验升级为 **codesign 团队白名单**（`localRPCTrustedTeamIdentifiers` + `peerPolicy`，拒绝 launchd 直启）；环境变量沿用 Cua AI 风格（`CUA_APP_SUPPORT_DIR`/`CUA_DIRECT_LAUNCH`/`CUA_IDLE_EXIT_SECONDS`）。
-- **固定 shim + 签名钉死变体**：[MiMo](../agents/mimo/computer-use.md)（§3）——入口是不可变 shim `Computer Use/bin/mcp`：`current` 符号链接落点校验 → Info.plist 通道身份 → `codesign --deep --strict` → TeamID/Authority 钉死，四重通过才 exec 签名 App 内的 Bootstrap binder，App 内嵌校验器再按签名 build receipt 核对运行时文件；BU 侧 socket 注册表（`MIMO_BROWSER_REGISTRY_DIR`，心跳 5s、陈旧回收 300s、上限 32 条）。
-- **会合文件 + CDN 分发**：[Cursor](../agents/cursor/computer-use.md)（§1）——`~/Library/Application Support/cursor-computer-use/service.json` 会合文件 + Unix socket 行分隔 JSON-RPC；Windows 用命名管道 + 0600 launch token 握手。
-- **每会话铸造 socket + token env**：[ZCode](../agents/zcode/evidence/inventory.md)（§2.18）——`mintBrokerSocketPath()` 生成 `broker-<8字节hex>.sock`（清理 24h 前陈旧 socket），经 env 注入 socket 路径与 token；没有 broker env 的可疑 MCP server 直接被宿主剔除。
-- 对照（固定路径派）：[Kimi](../agents/kimi-code/computer-use.md) 固定 `runtime.sock + runtime.token`（launchd 常驻，无注册表文件）；[Codex](../agents/codex/computer-use.md) 固定 Group Container socket + 三级自愈拉起——常驻派不需要服务发现，代价是 Helper 生命周期与系统绑定。
-- 变体（心跳文件做端口发布）：[Qoder Browser Connector](../agents/qoder/browser-use.md)（§4）——主进程把 loopback 端口写进 `clients/<id>.json`（`{id,port,pid,timestamp}`，30 秒过期 + 5s 未来容差 + pid 存活校验），扩展经 Native Messaging host 轮询获端口后**直连**主进程。
+| 变体 | 家 | 要点 |
+|---|---|---|
+| 注册表+懒拉起 | [Qoder](../agents/qoder/computer-use.md) | `lstat` 硬校验（0600/非 symlink）；BU 侧心跳文件+存活校验 |
+| service.json+懒拉起 | [Grok Bot](../agents/grok/computer-use.md) | 对端 codesign **团队白名单** |
+| 固定 shim+四重校验 | [MiMo](../agents/mimo/computer-use.md) | symlink 落点→plist→codesign→build receipt |
+| 会合文件+CDN 分发 | [Cursor](../agents/cursor/computer-use.md) | Windows 命名管道+0600 launch token |
+| 每会话铸造 socket | [ZCode](../agents/zcode/evidence/inventory.md) | `broker-<hex>.sock`+env 注入 |
+| 固定路径派（对照） | [Kimi](../agents/kimi-code/computer-use.md) / [Codex](../agents/codex/computer-use.md) | launchd 常驻/Group Container——零发现延迟，代价是生命周期绑定 |
 
-**实现要点**：注册表四件套——协议版本号（防旧客户端）、token 长度下限、文件安全属性（0600/属主/非 symlink，`lstat` 而非 `stat`）、对端存活校验；发现失败的自愈路径（懒拉起 + 有限等待）；客户端读失败按「未就绪」重试而不是按「出错」报障。
+**新 8 家零注册表**——无 Helper 即无服务发现，这是库/浏览器载体形态的结构性简化。
 
-**取舍**：注册表文件把 Helper 的生命周期完全还给按需启动（Qoder 的 Runtime 可以独立升级、崩溃不影响宿主），代价是多一类「陈旧文件」状态要处理——Cursor 的 service.json、Qoder 的 30s TTL 心跳都在解决这个问题。常驻派（Kimi/Codex）则用 launchd/自愈换取零发现延迟。
+**取舍**：注册表把生命周期还给按需启动，代价是多一类「陈旧文件」状态；常驻派用 launchd 换零延迟。
 
 ---
 
 <a id="p15"></a>
 ## P15. 钉死第三方工具基线（pinned baseline）
 
-**解决什么问题**：当你的工具面刻意与某个第三方契约保持兼容（如 chrome-devtools-mcp），上游 schema 漂移会让「兼容」在无人察觉时悄悄失效——兼容声明必须是**启动时可校验的断言**，而不是注释。
+**解决什么问题**：与第三方契约保持兼容时，上游漂移会让「兼容」悄悄失效——兼容必须是启动时可校验的断言。
 
-**谁在用**：
-- **注册时 join 比对，不一致拒绝启动**：[Qoder](../agents/qoder/browser-use.md)（§3.1）——内置 `browser-use` MCP server 把三段工厂产出的实际工具清单与 "pinned chrome-devtools-mcp compatibility baseline"（`fSr.tools` 16 项）做 join 比对，不一致直接抛错：`Browser Use tool registration does not match the pinned chrome-devtools-mcp compatibility baseline.`——fail-fast 在注册时。
-- 同族实践（版本/身份互证，强度递减）：
-  - [Synara](../agents/synara/computer-use.md)（§2）：启动 `metadata` 握手校验 `synara_native_revision`——补丁版驱动专用，版本不符拒绝使用；
-  - [Codex](../agents/codex/computer-use.md)（§5.2）：`ping {clientApiVersion}` 严格校验 `serverApiVersion`，不匹配即 `incompatibleClientVersion` 硬失败；
-  - [Kimi](../agents/kimi-code/computer-use.md)（§6）：node-repl 侧 `assertRuntimeCompatible` 版本门，低于 `minimum_runtime_version` 报错并给升级 URL；
-  - [ZCode](../agents/zcode/evidence/inventory.md)（§2.23）：producer pin 双别名（`@zcode/zcode-cua` 与 `@zcode/zcode-cua-helper-runtime`）必须钉**同一 40 位 commit**（`check-cua-baseline.mjs`）。
+| 家 | 校验 |
+|---|---|
+| [Qoder](../agents/qoder/browser-use.md) | 注册时 join 比对 chrome-devtools-mcp 基线，不一致拒绝启动 |
+| [Synara](../agents/synara/computer-use.md) / [Codex](../agents/codex/computer-use.md) / [Kimi](../agents/kimi-code/computer-use.md) / [ZCode](../agents/zcode/evidence/inventory.md) | 握手 native_revision / ping apiVersion / assertRuntimeCompatible / producer pin 同 commit |
+| **（新）**[Stagehand](../agents/stagehand/browser-use.md) | RuntimeDescriptor **协议主版本协商**——不匹配初始化即失败 |
+| **（新）**[Dia](../agents/dia/README.md) | `info.json` `claudeCodeVersion: "2.1.280"`——内嵌运行时**版本自述文件**作为谱系与基线证据 |
 
-**实现要点**：校验放在注册/握手时（不是首次调用时）；错误信息写出基线名让运维可诊断；版本关系是双向的（客户端 apiVersion ↔ 服务端 serverApiVersion）；pin 的对象要具体到 commit/清单级，不是版本号级。
+**要点**：校验在注册/握手时（非首次调用）；错误写出基线名；pin 到 commit/清单级而非版本号级。
 
-**取舍**：钉死基线换来契约稳定与跨版本可诊断，代价是上游每次更新都要显式 re-pin（Qoder 的 16 工具面被基线锁死——这是有意为之：它同时向用户承诺「市场里的 chrome-devtools-mcp 技能与内置工具同一词汇表」）。不校验的兼容声明只是营销。
+**取舍**：钉死换契约稳定，代价是上游每次更新要显式 re-pin；不校验的兼容声明只是营销。
 
 ---
 
 <a id="p16"></a>
 ## P16. 录制 → Skill 演示学习闭环
 
-**解决什么问题**：让 agent 学会「在某个 app 里怎么做一件事」，纯靠观察-模仿（看截图猜动作）不可靠；让**用户演示一遍**、从事件流反推可复用意图，再沉淀成可复用 Skill，泛化难题就交还给了最擅长的人。
+**解决什么问题**：纯观察-模仿不可靠；让**用户演示一遍**、从事件流反推可复用意图，泛化难题交还给人。
 
-**谁在用**：
-- **Qoder Record & Replay**（[computer-use.md §4.3](../agents/qoder/computer-use.md)）：MCP `event-stream` 三工具（start/status/stop）；录用户演示产出 `events.jsonl`（window.changed / mouse.click|drag|context_menu / keyboard.text_input|submit|shortcut，AX 上下文为 fullTree 或 `diffFromPrevious` unified-diff）→ agent 读事件流**推断可复用意图**（区分稳定步骤与偶发时序）→ 生成 `~/.qoder/skills/<kebab-name>/SKILL.md`（Claude Code skills 兼容格式）；回放指导「识别稳定 app/窗口/语义控件，避免纯坐标回放」。录制结束自动唤醒原 ChatSession（"I'm done recording."）。
-- 对照系（同一光谱上的另外两档）：
-  - [Codex record-and-replay](../agents/codex/computer-use.md)（§7）：只录不放——事件流录制（最长 30 分钟，需审批），stop 返回 metadata + events 路径，未见自动生成 Skill；
-  - [Claude teach mode](../agents/claude-code/computer-use.md)（§3.5）：反方向——agent 全屏 tooltip 引导**用户**操作（教学不是学习，是伴随）。
+| 光谱位置 | 家 | 状态 |
+|---|---|---|
+| 完整闭环（唯一） | [Qoder](../agents/qoder/computer-use.md) | events.jsonl → 推断意图 → 生成 SKILL.md（Claude Code 兼容）；抑制诊断+审批前置 |
+| 只录不放 | [Codex](../agents/codex/computer-use.md) | 30 分钟事件流录制，无 Skill 生成 |
+| 反方向（教学） | [Claude](../agents/claude-code/computer-use.md) | teach mode：agent 引导用户操作 |
 
-**实现要点**：录制三件套——主证据（事件流）、生命周期（session.json：录制 id/起止/endReason）、**抑制诊断**（suppressedEventsPath：安全输入域、禁录 app/URL、工具自身活动被省略的记录）；启动走原生审批窗 + 悬浮控制条（可停止并选保留/丢弃）；Skill 生成时敏感值必须转显式输入或占位符，禁止把录制工件路径与个人数据写进 Skill。
-
-**取舍**：演示学习把「泛化」外包给人（演示一遍比描述一遍精确），但录制面意味着持续的屏幕/输入观察——隐私抑制与审批必须前置（Qoder 连「工具自身活动」都要从录制里剔除）；Codex 停在「只录不放」，说明从事件流自动萃取可靠 Skill 的产品化难度——这是 12 家里目前只有 Qoder 走完的闭环。
+**新 8 家零命中**（无录制面）。**要点**：录制三件套（主证据/生命周期/抑制诊断）；Skill 生成时敏感值转显式输入。**取舍**：演示比描述精确，但录制面=持续屏幕/输入观察——隐私抑制必须前置；从事件流自动萃取可靠 Skill 的产品化难度解释了为何 20 家只有一家走完。
 
 ---
 
 <a id="p17"></a>
 ## P17. 错误即指令协议（结构化拒绝 + 升级建议）
 
-**解决什么问题**：模型收到「click failed」这类裸错误后会瞎猜下一步（盲试、换面绕过、提前放弃）。把失败本身设计成**带行为指令的结构化对象**，错误就变成协议的一部分而不是异常。
+**解决什么问题**：裸错误让模型瞎猜（盲试/绕过/放弃）；把失败设计成带行为指令的结构化对象。
 
-**谁在用**：
-- **最完整形态（Grok Bot）**：[computer-use.md §6–7](../agents/grok/computer-use.md)——16 个错误码静态映射到四档建议，随 `isError=true + structuredContent{code, message, escalation:{recommended, reason}}` 返回：`retry`（未生效，改参重发安全：capture_failed/invalid_arguments/input_failed/timeout）/ `ask_user`（只有机器前的人能解决：secure_desktop、input_desktop_unavailable、target_elevated、permission_required、session_busy、sidecar_unavailable、unsupported_request）/ `use_different_tool`（先跑指定工具，多为 screenshot_required）/ `stop`（user_aborted，本回合终止输入）。
-- 同族递减形态：
-  - [Cursor](../agents/cursor/computer-use.md)（§3.6）——refusal 四档 escalation（retry/ask_user/use_different_tool/stop）+ 结构化 `structuredContent`（macOS 指令不含 refusal 表，仅 Windows 模型陈述——同仓库内自己的不完全实现）；
-  - [Codex](../agents/codex/browser-use.md)（§6.2）——错误带 `decisionSource` 的拒绝目录 + 文案硬编码反绕过指令（"must not attempt … via workaround, indirect execution, raw CDP"）；
-  - [ZCode](../agents/zcode/computer-use.md)（§7）——`ComputerUseError{actionSent, dispatchStatus, retry:"reobserve"|"retry"|"never"}`，未知 broker 码一律 `INTERNAL` 绝不静默成功。
+| 家 | 形态 |
+|---|---|
+| 最完整：[Grok Bot](../agents/grok/computer-use.md) | 16 错误码→retry/ask_user/use_different_tool/stop 四档，`structuredContent{code,message,escalation}` |
+| [Cursor](../agents/cursor/computer-use.md) | refusal 四档 escalation（同仓库不完全实现） |
+| [Codex](../agents/codex/browser-use.md) / [ZCode](../agents/zcode/computer-use.md) | 拒绝目录+反绕过硬编码 / `{actionSent, dispatchStatus, retry}` |
+| **（新）**[Comet](../agents/comet/browser-use.md) | 视口不一致→拒绝整批+**回新截图**——错误即「重新定位」指令 |
+| **（新）**[Atlas](../agents/atlas/computer-use.md) | 停止后内嵌指令即协议：全部工具调用将被忽略、结束回合 |
+| **（新）**[UI-TARS](../agents/ui-tars/computer-use.md) | 7 个负数错误码（-100000 系）——**有码无协议**（无分档建议），反例样本 |
 
-**实现要点**：错误码表要在**编译期**静态映射（Grok/Cursor 把表嵌进二进制），不留给运行时即兴；`escalation` 必须区分「重试安全」与「未生效才可重试」；`stop` 档要写明波及范围（"本回合禁再调用输入类工具"）；`ask_user` 档要解释为什么只有人能解决。
+**要点**：错误码表编译期静态映射；`escalation` 区分「重试安全」与「未生效才可重试」；`stop` 写明波及范围。
 
-**取舍**：错误即指令让模型行为可预期，但错误表成为公共契约——新增错误码是破坏性变更（Grok 的表嵌在二进制里，随 sidecar 分发才好演进）。裸错误 + prompt 纪律（多数家）省契约但行为不可控。
+**取舍**：错误表成为公共契约，新增码=破坏性变更；裸错误+prompt 纪律省契约但行为不可控。
 
 ---
 
 <a id="p18"></a>
 ## P18. 执行层外包与 CLI 透传
 
-**解决什么问题**：自研 CU 执行层（AX/CGEvent/SCK）工程重、维护贵。把执行整体外包给成熟的第三方独立 CLI，agent 侧只做「一个工具 + 命令字符串透传」。
+**解决什么问题**：自研 CU 执行层工程重；外包给成熟第三方 CLI，agent 侧只做「1 工具+命令透传」。
 
-**谁在用**：
-- **Goose（12 家中唯一）**：[computer-use.md §1–5](../agents/goose/computer-use.md)——内置 Computer Controller extension（goose-mcp crate，feature gate，in-process MCP）对模型只暴露 **1 个工具** `computer_control(command, capture_screenshot)`，macOS 上把命令字符串 `shell_words::split` 后**原样交给 Peekaboo CLI**（steipete/peekaboo，MIT，Swift）；首次调用自动 `brew install steipete/tap/peekaboo`。Goose 自身**零 AX/CGEvent/ScreenCaptureKit 代码**。
-- 对照（其余 11 家全部内嵌执行层）：静态链接（Claude ComputerUseSwift）、内嵌 driver（MiniMax/Synara cua-driver）、utility process（MiniMax）、独立 Helper（ZCode/Codex/Kimi/Qoder/Grok Bot/Cursor/MiMo）。
-- 半外包变体：内嵌系也会「借用」外部工具做兜底——[Cursor Linux 云 worker 用 xdotool](../agents/cursor/computer-use.md)、[MiMo 非 mac 平台退化 nut.js](../agents/mimo/computer-use.md)——但主执行层仍在自己手里，与 Goose 的全面外包不同。
+| 家 | 实现 |
+|---|---|
+| [Goose](../agents/goose/computer-use.md)（**20 家中唯一**） | `computer_control` 命令字符串 `shell_words::split` 后原样交 Peekaboo；首次自动 `brew install`；自身零 AX/CGEvent/SCK 代码 |
+| 半外包变体 | [Cursor Linux 云 worker xdotool](../agents/cursor/computer-use.md)、[MiMo 非 mac 退化 nut.js](../agents/mimo/computer-use.md)——主执行层仍在自己手里 |
+| **对照（新）**[SOC](../agents/self-operating-computer/computer-use.md) | 同为 15 文件级极简，但**自带** pyautogui——极简两路：外包执行（Goose）vs 自带执行（SOC） |
 
-**实现要点**：透传前做 `shell_words` 分词与参数白名单化（goose 对 `see/image` 自动追加 `--path/--json-output`、对 `list/window/menubar/permissions/clipboard` 自动追加 `--json`）；为 GUI 启动环境重建 PATH（goose `merged_path()` 补 `/opt/homebrew/bin`）；extension instructions 内嵌一份第三方 CLI 命令手册，把命令空间"写进"模型上下文。
+**要点**：透传前分词+参数白名单化；GUI 环境重建 PATH；extension 内嵌第三方 CLI 命令手册把命令空间写进模型上下文。
 
-**取舍**：工具面永不膨胀（永远 1 个工具）、能力随外部 CLI 升级（`brew upgrade peekaboo`）、工程成本最低；代价是失去会话级控制——无 lease、无急停、无后台交付语义、无超时（goose 同步阻塞执行，仅工具级 300s 超时），TCC 授权给 Peekaboo 而非 agent，CU 只享受通用工具权限门。Peekaboo 的 `see --annotate`（AX 树标注叠加截图）倒是意外给了 12 家中唯一的 SoM 变体。
+**取舍**：工具面永不膨胀、能力随 `brew upgrade` 演进；代价是无 lease/无急停/无后台语义/无超时，TCC 归 Peekaboo。Peekaboo `see --annotate`（AX 标注截图）意外贡献了 SoM 三态中的「AX 叠注变体」（[§3.2](../comparison/capability-matrix.md#32-som-三态20-家后的第三次结论改写)）。
 
 ---
 
 <a id="p19"></a>
 ## P19. 云端执行、本地投影
 
-**解决什么问题**：GUI 控制放云 VM 里跑，本地就不需要 TCC、不需要 Helper、天然隔离用户桌面——但模型和人仍需要「看得见、够得着、能接管」的本地入口。
+**解决什么问题**：GUI 控制放云 VM，本机免 TCC/免 Helper/天然隔离——但模型与人需要「看得见、够得着、能接管」的本地入口。
 
-**谁在用**：
-- **Devin（纯度最高）**：[computer-use.md](../agents/devin/computer-use.md)、[browser-use.md](../agents/devin/browser-use.md)——`computer` 工具与 Interactive Browser 全在云会话 VM（1024×768 截图-动作循环；macOS VM 需 TCC）；本地 CLI（chisel）工具面只有 read/edit/grep/glob/exec，对 CU/BU 的参与是三种**投影**：① ACP 扩展能力位（`browser_preview`/`browser_preview_open`，日志实测 true）+ `cognition.ai/*` 扩展方法族；② `devin mcp add` 外挂；③ `--cloud`/`ssh`/`forward` 代理直连。人接管走会话 UI 同屏（Browser/Computer 标签）。
-- **Grok Bot（混合形态）**：[browser-use.md](../agents/grok/browser-use.md)——本地 CU 完整（Swift helper），本地 BU **零工具面**（负证据判定书），云端 browser_subagent + box 沙箱 + 托管 MCP；本机只留登录态供给（cookie 逐 origin 审批导入）、签名抓取、noVNC 控制台（观看+介入）。
-- 对照（本地优先的反方向）：其余 10 家的 CU/BU 执行体默认在本机；Codex/Cursor 虽有云端后端，但本地面完整——「云」是选项而非前提。
+| 家 | 形态 | 投影 |
+|---|---|---|
+| [Devin](../agents/devin/computer-use.md)（纯度最高） | 云 VM `computer`+Interactive Browser（CDP :29229） | 三投影：ACP 能力位 / `mcp add` 外挂 / `--cloud` 代理直连；人接管走会话 UI 同屏 |
+| [Grok Bot](../agents/grok/browser-use.md)（混合） | 本地 CU 完整+云端 BU 四件套 | 本机留 cookie 审批导入+noVNC 控制台 |
+| **（新）**[Fellou](../agents/fellou/computer-use.md)（最不透明） | deepAction 云端 Javis「full computer control」（中置信） | 投影面不明——比 Devin 少了 Interactive Browser 级证据；包已死亡无法复核 |
+| **（新）**[Comet](../agents/comet/README.md)（**镜像形态**） | 决策在 perplexity.ai 云、执行在本机浏览器 | 投影的是「大脑」不是「手脚」——P19 的倒置：云管编排，本地管键鼠 |
 
-**实现要点**：登录态是云执行的命门——三条解法：Devin `save_browser_profile` → org blueprint（≤200MB、跳过 Chrome 密码库、org 级共享）；Grok Finder AppleScript 拷贝 Cookies 文件 + 逐 origin 审批上传（默认 deny、5 分钟时效）；Synara rookie-cookies 导入自有面板。程序化入口用受限 CDP（Devin :29229 同状态附着；Grok 干脆不暴露）。人的介入通道：Devin 会话 UI 同屏、Grok noVNC（黑帧探针 + 帧节流 + 剪贴板回环抑制）。
+**要点**：登录态是云执行命门——blueprint（Devin ≤200MB 跳密码库）/ cookie 逐 origin 人审（Grok）/ 用户本机会话直用（Comet/Dia 反向：不隔离）。程序化入口用受限 CDP；人介入通道多样化（同屏/noVNC）。
 
-**取舍**：本机零权限、零残留、算力弹性；代价是延迟、云成本、登录态供给的隐私面（跨设备传 cookie 本身就是敏感动作），以及「本地投影」容易让用户误以为能力在本机——负证据判定（capability-matrix §7）因此成了这类产品的必备功课。
+**取舍**：本机零权限零残留、算力弹性；代价是延迟、云成本、登录态上传隐私面、「本地投影」误导——负证据判定（[capability-matrix §7](../comparison/capability-matrix.md#7-本机可用性一览分析时点快照)）因此成必备功课。
 
 ---
 
 <a id="p20"></a>
 ## P20. 代工换牌与白牌供应链识别
 
-**解决什么问题**：CU/BU 赛道出现白牌供应链——A 公司的产品由 B 公司代工。逆向时若不识别换牌，会把两家的能力栈误当独立实现（重复劳动），或把 A 的安全问题错记到 B 头上。
+**解决什么问题**：A 公司产品由 B 公司代工；不识别换牌会重复归因或错记安全责任。
 
-**谁在用 / 谁被识别**：
-- **Grok Bot = Anysphere（Cursor 母公司）代工**（[grok computer-use.md §9](../agents/grok/computer-use.md)，12 家中谱系证据最硬）：① TeamID `DCNK4UB866` 双方一致（主应用 `com.anysphere.sand`、助手 `co.anysphere.grok-bot-computer-use` 同团队）；② asar package.json homepage `cursor.com`、依赖 `cursor-proclist`；③ JS 宿主类默认值残留 `cursor-computer-use`/`Cursor Computer Use`/`CUCursorService`（运行时被产品表覆盖）；④ sidecar 分发 CDN 仍是 `downloads.cursor.com/computer-use-sidecar`（manifest URL 正则可直接复核）；⑤ `sand_*` flag 家族与 `sand-cua` 模型名两家同名同值。
-- 同类先例（更早的谱系识别，方法同源）：ZCode ← Codex（API 面对齐，注释自述）、Qoder ← qwen-code（UPSTREAM.md）、MiMo ← Codex sky（自述复刻）——但那些是「借鉴/迁移/复刻」，Grok Bot 是**同一条产品线的换牌**。
-- 关联线索（弱证据，置信度中）：Grok Bot sidecar 的 Cua AI 风格环境变量（`CUA_*`）佐证 Cursor sidecar 基座与 Cua AI 的传承。
+| 案例 | 关系 | 识别证据 |
+|---|---|---|
+| **Grok Bot ← Anysphere**（谱系最硬） | 同一产品线换牌 | TeamID `DCNK4UB866` 双方一致；homepage cursor.com；JS 残留 `CUCursorService`；CDN `downloads.cursor.com`；`sand-cua` 同名 |
+| 借鉴/迁移/复刻先例 | ZCode←Codex、Qoder←qwen-code（UPSTREAM.md）、MiMo←Codex sky（自述复刻） | 方法同源但非换牌 |
+| **（新）Dia ← Claude Code SDK** | **整包内嵌开源运行时** | `info.json` `claudeCodeVersion: "2.1.280"` 铁证 + bunfs 内 `computer-use-swift.js` + spec `harness: claude-sdk`——识别第 5 件：**内嵌运行时的版本自述文件** |
+| **（新）Atlas ← Operator 协议** | **同源不同栈** | 同 Team `2DC432GLL2`、同 ChatGPT 扩展 id、同 guardian 审批话术；但 Sky 栈零命中——血统相同、执行栈独立（防误并） |
+| **（新）Fellou ← Eko** | 产品引用自家开源 | 官方博客自认 "Eko 2.0, a crucial open-source Browser-use infrastructure" |
 
-**实现要点（取证四件套）**：
-1. `codesign -dv` 比对 TeamID——最硬的单项证据（签名团队不会骗人）；
-2. 包元数据残留：homepage/repository/依赖名/内部包名；
-3. 运行时默认值与字符串残留（改名覆盖不到的角落：类默认值、CDN 域名、URL 正则）；
-4. 交叉资产：同一 CDN、同一模型 ID、同一 flag 家族在两家产物中出现。
+**取证五件套**：`codesign -dv` TeamID；包元数据残留；运行时默认值/字符串残留；交叉资产（同 CDN/模型 ID/flag 家族）；**内嵌运行时版本自述文件（新增）**。
 
-**取舍**：换牌识别的价值在横向研究的归因准确性（capability-matrix 谱系图据此新增第五种关系），也是安全审计的必查项——代工意味着安全模型继承自代工方（Grok Bot 的门控/租约/refusals 与 Cursor 同构，连「本机未激活」状态都同构）。对被识别方而言这是敏感结论，行文须 stick to 静态证据、标注推断边界。
+**取舍**：换牌识别保证横向归因准确，也是安全审计必查（代工=安全模型继承代工方）；行文 stick to 静态证据、标注推断边界。
+
+---
+
+<a id="p21"></a>
+## P21. 被集成库形态（「产品内嵌」的反面：库被产品包进去）
+
+**解决什么问题**：产品内嵌 BU（ZCode IAB/Cursor webview）把浏览器能力当私产；另一条路是把自己做成**库**，让任意产品/开发者把你包进去——能力面由集成方组合。
+
+| 家 | 库形态 | 集成面 |
+|---|---|---|
+| [browser-use](../agents/browser-use/README.md) | `Agent(task, llm, browser_session)` 四参数起步、90+ 可调参数、16 家 LLM 适配器（协议仅一个 `ainvoke`） | 可反挂 MCP server / CLI / 云；「被集成的事实标准」 |
+| [stagehand](../agents/stagehand/README.md) | npm/pip/go 三语言 SDK；"The SDK for browser agents"；v4 无 Agent 循环（控制流归开发者） | 被 CrewAI/Mastra/Vercel AI SDK/Claude Code/Codex 以「浏览器工具箱」接入 |
+| [eko](../agents/fellou/README.md) | MIT 工作流框架：XML DSL 多 agent 依赖图+变量+watch | Fellou 官方自认 BU 基础设施——**产品把库包进去的活样本** |
+
+**要点**：无宿主假设（不预设 UI/权限/登录态）；LLM 面协议化（browser-use 单 `ainvoke`、stagehand 三路模型抽象）；集成文档即 API 面（stagehand 迁移文档逐条教「从 browser-use 迁来」）。
+
+**取舍**：被集成性换分发广度，代价是产品级安全层缺席——stagehand 无 TCC/租约/急停（浏览器沙箱即边界）；browser-use 靠 `<secret>` 占位符+域围栏自补。CU 分册的「Helper/租约/急停」清单对库形态整体不适用。
+
+---
+
+<a id="p22"></a>
+## P22. 确定性 + AI 逃生舱混合范式
+
+**解决什么问题**：全自动 agent 每步推理——贵、慢、不可 review。把大部分步骤交给确定性代码，AI 只在选不出元素时出场，脚本随时间「沉淀」为纯代码。
+
+**代表：[stagehand v4](../agents/stagehand/browser-use.md)**（20 家中唯一完整样本）：
+
+| 机制 | 行为 |
+|---|---|
+| act 双分派 | 传字符串→AX 快照→结构化推理→elementId→xpath→执行；传 Action 对象（observe 返回值）→**零推理直执行** |
+| 确定性主体 | 77 个 Playwright 形状 API 零 token；官方原话 "There is no `Agent`" |
+| 缓存 | 服务端按「指令+DOM 键」命中后**无 LLM 确定性重放选择器序列**——缓存放的是真实 DOM 操作序列，不是答案 |
+| 自愈 | 执行失败且 selfHeal:on → 重快照重推选择器重试一次；重放失败回退全推理（三层递进） |
+
+**取舍**：控制流可 review/diff/版本化、确定性步骤零 token、缓存重放比记 LLM 文本更抗漂移；代价是没有「一句话任务」——复杂流程要开发者写循环。browser-use 走另一极端（每步推理），两家官方互为迁移指南对象——这是范式光谱的两个端点，不是优劣关系。
+
+---
+
+<a id="p23"></a>
+## P23. 云端全控制委派（极端形态与风险对照）
+
+**解决什么问题**：本地执行要 TCC/Helper/审计；把「computer control」整体外包给云端执行体，本机只留委派入口。
+
+| 家 | 委派形态 | 本机残留 | 透明度 |
+|---|---|---|---|
+| [Devin](../agents/devin/computer-use.md) | 云 VM `computer` 工具+Interactive Browser | 本地投影三件（能力位/mcp add/代理直连） | 高：官方文档+本机数据面交叉可验 |
+| [Fellou](../agents/fellou/computer-use.md) | deepAction："delegate to **Javis** with **full computer control** over **networked computers**" | 授权面宣称+eko 开源编排 | 低：云沙箱不可见、包已死亡——判**中置信** |
+
+**风险对照**：
+
+| 风险 | Devin 的答案 | Fellou 的答案 |
+|---|---|---|
+| 登录态供给 | blueprint ≤200MB、跳过 Chrome 密码库、org 级共享 | 未披露 |
+| 审计 | Progress 标签统一记录、sessions.db | 黑箱 |
+| 人机边界 | SSO/MFA/CAPTCHA 天然是人的活 | 框架 `request_help` 交还人；**官网却宣称 AI 模拟人类行为解 CAPTCHA**——话术与纪律相悖 |
+| 误引导 | 「本地投影」易被误读为本机能力 | 连投影面都不明——用户无从判断执行在哪 |
+
+**取舍**：本机零权限零残留、算力弹性、云侧统一风控；代价是延迟、登录态上传隐私面、审计黑箱。**委派边界必须显式**：Devin 用文档+能力位把「什么在云上」说清楚，Fellou 的模糊恰是反面教材——云端全控制与「网络ed computers」话术叠加时，安全评审应默认最坏解释。
+
+---
+
+<a id="p24"></a>
+## P24. prompt 内嵌动作语法（无 schema 时代的活化石）
+
+**解决什么问题**：模型不会调工具时，动作协议只能写进 system prompt 文本。[SOC](../agents/self-operating-computer/computer-use.md) 是这套打法的完整存档，也标定了工具协议的演化起点。
+
+| 层 | SOC 形态 | 现代对照 |
+|---|---|---|
+| 动作面 | 4 操作（click/write/press/done）写在 prompt；输出=JSON 数组过 `json.loads` | MCP schema / REPL 对象面 / CLI 透传 |
+| 解析容错 | `clean_json` 剥 ```` ```json ```` 围栏——唯一容错层 | schema 校验+类型系统 |
+| 演化地层 | `misc.py` v1.0 行式协议（`CLICK{}`）死代码与 v1.2 JSON 协议同仓 | 两代协议同仓=地层学样本 |
+| 平台适应 | 键位随平台换（mac Spotlight / Win win 键写进 prompt 示例） | 工具层自适应，无 prompt 分支 |
+| 反面教材 | 默认 prompt 压制模型拒绝话术（"Don't respond saying you're unable to assist"） | 拒绝升级为结构化协议（[P17](#p17)） |
+
+**残余价值**：零原生 tool-call 依赖=任何会吐文本的模型都能跑。[Agent TARS](../agents/ui-tars/browser-use.md) `browser_vision_control` 同思路（`thought/step/action` 三个字符串参数，服务端复用同一解析器）——prompt 内嵌语法在与视觉模型结合的场景仍然活着。
+
+**取舍**：无 schema 校验、无发现性、错误即停；换来的是模型无关性与三行代码的极简。现代实现仅在兼容不支持 tool-call 的模型时保留此形态。
 
 ---
 
 ## 附：模式组合的最小可行架构
 
-如果从头做一个 CU/BU Agent，12 家经验给出的推荐组合：
+从头做一个 CU/BU Agent，20 家经验给出的推荐组合：
 
 ```
-P1 独立 Helper（持 TCC + 权限中介，签名分发；服务发现用 P14）
- ├── P2 AX 优先 + 截图兜底，观察-动作-再观察 + ActionSettler
- ├── P3 snapshot_id 绑定 + 描述校验 + verify 三态（收据派，跳过 Codex 纪律派）
- ├── P4 AX 写值 → 窗口相对事件 → （可选）签名事件；后台失败不升级前台
- ├── P5 setValue / paste（借还）/ type 三层文本输入
- ├── P6 单持有者 lease（观察不占）+ generation fencing
- ├── P7 dispatch_status 三态收据 + kill switch 闩锁（两豁免）
- ├── P8 先内嵌 WebView 起步，扩展/云端按需求加，统一对象面 + 能力广告
- ├── P9 MCP 挂载 + skill/文档驱动的模型面 + 未启用即不存在（或 P18 透传起步）
- ├── P10 应用 tier + 域白名单 + 凭据红线 + 反绕过错误文案
- ├── P11 三层门控（装配/执行/转发）+ AbortController 即时掐断
- ├── P12 批量动作（批前截图坐标系 + expect_change）
- ├── P13 合成光标 + 活动浮层 + Takeover + receipts 审计
- ├── P14 注册表文件型传输（ipc/*.json + token + 懒拉起 + 存活校验）
- ├── P15 钉死第三方基线（注册/握手时 join 比对，不一致 fail-fast）
- ├── P16 （可选）演示录制 → Skill 闭环：先「只录不放」，抑制诊断与审批前置
- ├── P17 错误即指令协议（错误码→四档行为建议，编译期静态映射）
- ├── P18 （低成本替代）执行层外包：单工具透传成熟 CLI + instructions 内嵌命令手册
- ├── P19 （云产品路线）云端执行 + 本地投影：能力位/会话管理留本地，接管走同屏
- └── P20 供应链卫生：自己的 TeamID/CDN/flag 命名会被取证——换牌前先想清楚
+P1 独立 Helper（持 TCC+权限中介；服务发现用 P14）——或走 P21 库路线跳过整层
+ ├── P2 AX/页面结构优先+截图兜底；观察-动作-再观察+稳定等待
+ ├── P3 snapshot_id 绑定+verify 三态（收据派）；浏览器场景加视口版本守卫
+ ├── P4 AX 写值→窗口相对事件→（可选）签名事件；后台失败不升级前台
+ ├── P5 setValue / paste（借还）/ type 三层；敏感值用 <secret> 式截断
+ ├── P6 单持有者 lease（观察不占）+generation fencing
+ ├── P7 dispatch_status 三态收据+kill switch 闩锁（两豁免）
+ ├── P8 先内嵌 WebView 起步，扩展/云端/CDP 附着按需加；能力广告屏蔽差异
+ ├── P9 MCP 挂载+skill 驱动模型面；未启用即不存在
+ ├── P10 应用 tier+域白名单+凭据红线+反绕过错误文案
+ ├── P11 三层门控（装配/执行/转发）+在途可掐断
+ ├── P12 批量动作（批前截图坐标系+expect_change+批内失败语义）
+ ├── P13 合成光标/活动浮层+Takeover+receipts 审计
+ ├── P14 注册表文件型传输（0600/非 symlink/存活校验）
+ ├── P15 钉死第三方基线（注册/握手时校验，fail-fast）
+ ├── P16 （可选）录制→Skill：先「只录不放」，抑制诊断前置
+ ├── P17 错误即指令（错误码→四档建议，编译期映射）
+ ├── P18 （低成本替代）CLI 透传：单工具+命令手册内嵌 instructions
+ ├── P19 （云产品路线）云端执行+本地投影：接管通道与负证据判定必备
+ ├── P20 供应链卫生：TeamID/CDN/flag 命名会被取证
+ ├── P21 （库路线）被集成形态：无宿主假设+LLM 面协议化；安全层自补
+ ├── P22 （生产路线）确定性主体+AI 逃生舱：act 双分派+缓存放选择器序列
+ ├── P23 （委派路线）云端全控制要显式边界：登录态/审计/人机边界缺一即反面教材
+ └── P24 （兼容路线）prompt 内嵌动作语法：仅当模型不支持 tool-call 时保留
 ```
+
+> 路线分岔：本地产品走 P1–P20 主干；库（P21）与半自动 SDK（P22）跳过 Helper/租约/急停层；云委派（P23）把安全重心移到登录态与审计；P24 只做兼容层。

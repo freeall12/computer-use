@@ -1,0 +1,103 @@
+{
+  "_provenance": {
+    "status": "文档",
+    "evidence": [
+      "agents/self-operating-computer/computer-use.md §3–§6",
+      "agents/self-operating-computer/evidence/inventory.md",
+      "上游开源源码（MIT）：source/self-operating-computer/vendor/operate/（v1.5.8，commit fac568e）"
+    ],
+    "note": "手写整理的接口事实，全部来自上游开源源码与 README 的只读分析，非反编译产物。Self-Operating-Computer 没有 MCP 工具面——动作语法内嵌在 system prompt 文本里，本文件把『prompt 内嵌协议』按工具 schema 形状规范化。"
+  },
+  "project": {
+    "name": "Self-Operating Computer",
+    "vendor": "OthersideAI (HyperWrite)",
+    "version": "1.5.8",
+    "license": "MIT",
+    "paradigm": "纯视觉 + 全局合成输入：screenshot → 多模态模型 → pyautogui；无 AX 树、无元素句柄、无任何安全层",
+    "entrypoint": "operate（console_scripts → operate/main.py:9 main_entry）"
+  },
+  "loop": {
+    "mechanism": "while True 无租约循环",
+    "evidence": "vendor/operate/operate.py:107-131",
+    "steps": [
+      "get_next_action(model, messages, objective, session_id) 截屏并调用模型（operate.py:111-113）",
+      "operate(operations, model) 逐动作分派，每个动作前固定 sleep(1)（operate.py:141）",
+      "done → 打印 summary 并终止（operate.py:163-170）；未知操作 → 打印错误并终止（operate.py:172-179）",
+      "loop_count > 10 → 强制跳出——唯一的防死循环护栏（operate.py:119-121，最多 11 轮）"
+    ],
+    "error_semantics": "循环层 catch 一切异常 → 打印 → break（operate.py:127-131）；模型层失败走 gpt-4o 无界递归重试（apis.py:142/311/752/787/1090）"
+  },
+  "operations": [
+    {
+      "name": "click",
+      "variants": {
+        "standard": { "fields": { "x": "屏幕宽度百分比小数（如 \"0.10\"）", "y": "屏幕高度百分比小数" }, "prompt": "SYSTEM_PROMPT_STANDARD", "evidence": "vendor/operate/models/prompts.py:18-21" },
+        "ocr": { "fields": { "text": "要点击的按钮/链接文本；找不到时返回 \"nothing to click\"" }, "prompt": "SYSTEM_PROMPT_OCR（默认档）", "resolution": "EasyOCR 子串匹配 → 边界框中心 → 除以图宽高 round 3 位", "evidence": "vendor/operate/models/prompts.py:139-141、vendor/operate/utils/ocr.py:53,81-98、vendor/operate/models/apis.py:368-409" },
+        "som": { "fields": { "label": "红色边界框标签 ID，格式 \"~x\"" }, "prompt": "SYSTEM_PROMPT_LABELED", "resolution": "YOLOv8（weights/best.pt）检测按钮 → add_labels 标注 → 标签查表 → 百分比", "evidence": "vendor/operate/models/prompts.py:76-78、vendor/operate/models/apis.py:646-757" }
+      },
+      "execution": "operating_system.mouse → click_at_percentage：pyautogui.size() 百分比→像素，moveTo(duration=0.2) 直线移动，0.5s 装饰性画圈（半径 50px，纯视觉表演），最终 click 圆心",
+      "evidence": "vendor/operate/utils/operating_system.py:28-63"
+    },
+    {
+      "name": "write",
+      "fields": { "content": "要键入的文本" },
+      "execution": "content.replace('\\\\n','\\n') 后逐字符 pyautogui.write(char)",
+      "evidence": "vendor/operate/models/prompts.py:23-26、vendor/operate/utils/operating_system.py:10-16"
+    },
+    {
+      "name": "press",
+      "fields": { "keys": "键名数组；组合键 = 全部 keyDown → sleep 0.1s → 全部 keyUp" },
+      "alias": "hotkey（operate.py:148 同分支，prompt 只教 press）",
+      "platform_keys": { "Darwin": { "cmd": "command", "os_search": "[\"command\", \"space\"]" }, "Windows": { "cmd": "ctrl", "os_search": "[\"win\"]" }, "Linux": { "cmd": "ctrl", "os_search": "[\"win\"]" } },
+      "evidence": "vendor/operate/models/prompts.py:215-226、vendor/operate/utils/operating_system.py:18-26"
+    },
+    {
+      "name": "done",
+      "fields": { "summary": "完成摘要" },
+      "execution": "打印 summary → 终止主循环（唯一正常出口）",
+      "evidence": "vendor/operate/models/prompts.py:33-36、vendor/operate/operate.py:163-170"
+    }
+  ],
+  "observation": {
+    "screenshot": {
+      "Darwin": "subprocess `screencapture -C`（-C 含光标）",
+      "Windows": "pyautogui.screenshot()",
+      "Linux": "python-Xlib 取尺寸 + PIL ImageGrab.grab（避免 scrot 依赖）",
+      "evidence": "vendor/operate/utils/screenshot.py:11-27"
+    },
+    "compression": "claude-3 档缩至 2560 宽 JPEG q85（5MB API 限制）；qwen-vl 档 compress_screenshot JPEG q85 白底",
+    "evidence": "vendor/operate/models/apis.py:884-911、vendor/operate/utils/screenshot.py:30-42"
+  },
+  "models": [
+    { "id": "gpt-4-with-ocr", "engine": "gpt-4o + EasyOCR", "default": true, "fallback": "gpt_4_fallback" },
+    { "id": "gpt-4", "engine": "gpt-4o 直出百分比坐标", "fallback": "无界递归重试自身", "note": "presence_penalty=1, frequency_penalty=1" },
+    { "id": "gpt-4-with-som", "engine": "gpt-4o + YOLOv8 按钮 SoM", "fallback": "call_gpt_4o；注意 apis.py:778 return 在 for 循环内——每轮只处理第一个操作（上游缺陷）" },
+    { "id": "gpt-4.1-with-ocr", "engine": "gpt-4.1 + EasyOCR", "fallback": "gpt_4_fallback" },
+    { "id": "o1-with-ocr", "engine": "o1 + EasyOCR", "fallback": "gpt_4_fallback" },
+    { "id": "claude-3", "engine": "claude-3-opus + EasyOCR（文本取前 3 字符匹配）", "fallback": "消息格式转 GPT-4 形状后 gpt_4_fallback（apis.py:1034-1060）" },
+    { "id": "qwen-vl", "engine": "qwen2.5-vl-72b-instruct（DashScope 兼容模式）+ EasyOCR", "fallback": "gpt_4_fallback" },
+    { "id": "gemini-pro-vision", "engine": "gemini-pro-vision + system prompt 作为首条内容", "fallback": "call_gpt_4o" },
+    { "id": "llava", "engine": "本地 Ollama llava", "fallback": "无（仅打印错误）；消息里的图片路径会被置 None 防 Ollama 超时（apis.py:830）" },
+    { "id": "agent-1", "engine": "占位符，直接返回 \"coming soon\"（apis.py:55-56）" }
+  ],
+  "voice": {
+    "flag": "--voice",
+    "engine": "whisper_mic.WhisperMic().listen()（requirements-audio.txt 仅一行 whisper-mic）",
+    "scope": "仅目标输入（objective）经语音；动作循环不变",
+    "api_key": "voice_mode 强制要求 OPENAI_API_KEY（config.py:135-144）",
+    "evidence": "vendor/operate/operate.py:52-62,84-91"
+  },
+  "legacy_dead_code": {
+    "parse_operations": "vendor/operate/utils/misc.py:11-40：v1.0 时代文本协议解析器（CLICK {json} / TYPE \"…\" / SEARCH \"…\" / DONE 行式协议），现行代码零调用——保留作演进史证据（v1.0.1 prompts 的 CLICK{}/TYPE/SEARCH/DONE 语法）"
+  },
+  "security_surface": {
+    "finding": "无任何安全机制：无租约、无防重放、无动作验证、无应用白名单、无急停热键、无审计",
+    "mitigations_present": ["每动作 sleep(1)（operate.py:141）", "loop_count > 10 上限（operate.py:120）", "unknown 操作即停（operate.py:172-179）"],
+    "risks": [
+      "API key 明文追加写 .env（config.py:184-187）",
+      "模型失败无界递归重试（apis.py:142）可无限烧 API 额度",
+      "prompt 内置『不要说你无法协助』指令（prompts.py:63,125,193）压过模型自身的拒绝倾向",
+      "点击前装饰性画圈 0.5s 是唯一『人类可见性』设计（operating_system.py:54-59），且非刻意安全设计"
+    ]
+  }
+}
